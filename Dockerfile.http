@@ -1,0 +1,12 @@
+FROM golang:1.25
+
+WORKDIR /app
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN go build -o user_service ./cmd/http
+
+EXPOSE 8081
+CMD ["./user_service"]

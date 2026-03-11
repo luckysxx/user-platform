@@ -1,0 +1,60 @@
+services:
+  user-http:
+    build:
+      context: .
+      dockerfile: Dockerfile.http
+    ports:
+      - "8081:8081"
+    environment:
+      - ENV=development
+      - SERVER_PORT=8081
+      - DB_SOURCE=postgres://luckys:123456@postgres:5432/user_platform?sslmode=disable
+      - REDIS_ADDR=redis:6379
+      - REDIS_PASSWORD=123456
+      - JWT_SECRET=user_platform_secret_key
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8081/api/v1/users/login"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - gopher-net
+      - platform-internal
+    restart: unless-stopped
+
+  user-grpc:
+    build:
+      context: .
+      dockerfile: Dockerfile.grpc
+    ports:
+      - "9091:9091"
+    environment:
+      - ENV=development
+      - USER_GRPC_PORT=9091
+      - DB_SOURCE=postgres://luckys:123456@postgres:5432/user_platform?sslmode=disable
+      - REDIS_ADDR=redis:6379
+      - REDIS_PASSWORD=123456
+      - JWT_SECRET=user_platform_secret_key
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - gopher-net
+      - platform-internal
+    restart: unless-stopped
+
+networks:
+  gopher-net:
+    name: gopher-net
+    external: true
+  platform-internal:
+    name: platform-internal
+    external: true
