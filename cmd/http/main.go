@@ -4,15 +4,15 @@ import (
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
 
-	"github.com/luckysxx/user-platform/common/auth"
-	"github.com/luckysxx/user-platform/common/config"
-	"github.com/luckysxx/user-platform/common/database"
-	"github.com/luckysxx/user-platform/common/logger"
-	"github.com/luckysxx/user-platform/db"
-	"github.com/luckysxx/user-platform/handler"
-	"github.com/luckysxx/user-platform/repository"
-	"github.com/luckysxx/user-platform/service"
-	httptransport "github.com/luckysxx/user-platform/transport/http"
+	"github.com/luckysxx/user-platform/internal/auth"
+	"github.com/luckysxx/user-platform/internal/db"
+	"github.com/luckysxx/user-platform/internal/platform/config"
+	"github.com/luckysxx/user-platform/internal/platform/database"
+	"github.com/luckysxx/user-platform/internal/platform/logger"
+	"github.com/luckysxx/user-platform/internal/repository"
+	"github.com/luckysxx/user-platform/internal/service"
+	"github.com/luckysxx/user-platform/internal/transport/http/handler"
+	httprouter "github.com/luckysxx/user-platform/internal/transport/http/router"
 )
 
 // @title           User Platform Service
@@ -34,6 +34,6 @@ func main() {
 	userHandler := handler.NewUserHandler(userSvc, log)
 
 	r := gin.New()
-	httptransport.SetupRouter(r, userHandler, log)
+	httprouter.SetupRouter(r, userHandler, log)
 	r.Run(":" + cfg.Server.Port)
 }

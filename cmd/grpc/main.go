@@ -8,15 +8,15 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/luckysxx/user-platform/common/auth"
-	"github.com/luckysxx/user-platform/common/config"
-	"github.com/luckysxx/user-platform/common/database"
-	"github.com/luckysxx/user-platform/common/logger"
-	"github.com/luckysxx/user-platform/db"
+	"github.com/luckysxx/user-platform/internal/auth"
+	"github.com/luckysxx/user-platform/internal/db"
+	"github.com/luckysxx/user-platform/internal/platform/config"
+	"github.com/luckysxx/user-platform/internal/platform/database"
+	"github.com/luckysxx/user-platform/internal/platform/logger"
+	"github.com/luckysxx/user-platform/internal/repository"
+	"github.com/luckysxx/user-platform/internal/service"
+	usergrpcserver "github.com/luckysxx/user-platform/internal/transport/grpc/server"
 	pb "github.com/luckysxx/user-platform/proto/user"
-	"github.com/luckysxx/user-platform/repository"
-	"github.com/luckysxx/user-platform/service"
-	usergrpc "github.com/luckysxx/user-platform/transport/grpc"
 
 	"go.uber.org/zap"
 )
@@ -44,7 +44,7 @@ func main() {
 	userSvc := service.NewUserService(userRepo, jwtManager, logg)
 
 	s := grpc.NewServer()
-	pb.RegisterUserServiceServer(s, usergrpc.NewUserServer(userSvc, logg))
+	pb.RegisterUserServiceServer(s, usergrpcserver.NewUserServer(userSvc, logg))
 	logg.Info("user grpc listening", zap.String("port", port))
 
 	go func() {
