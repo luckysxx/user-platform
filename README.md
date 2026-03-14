@@ -203,7 +203,6 @@ CREATE TABLE IF NOT EXISTS users (
 
 ## 已知注意项
 
-- .env.example 中 DB_SOURCE 默认库名为 gopher_paste，与你当前 compose 使用的 user_platform 不一致，建议统一为 user_platform。
 - HTTP 登录 DTO 当前要求 access_token/refresh_token 必填（即使业务层未使用），后续可在 DTO 校验标签中移除。
 
 ## License
