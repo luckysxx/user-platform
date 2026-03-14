@@ -1,27 +1,21 @@
 package database
 
 import (
-	"database/sql"
-
+	_ "github.com/lib/pq"
+	"github.com/luckysxx/user-platform/internal/ent"
 	"github.com/luckysxx/user-platform/internal/platform/config"
 
 	"go.uber.org/zap"
 )
 
-// InitPostgres 初始化 PostgreSQL 数据库连接
-func InitPostgres(cfg config.DatabaseConfig, log *zap.Logger) *sql.DB {
-	conn, err := sql.Open(cfg.Driver, cfg.Source)
+// InitEntClient 初始化 Ent 客户端并验证数据库连接配置。
+func InitEntClient(cfg config.DatabaseConfig, log *zap.Logger) *ent.Client {
+	client, err := ent.Open(cfg.Driver, cfg.Source)
 	if err != nil {
-		log.Fatal("无法打开 PostgreSQL 数据库", zap.Error(err))
+		log.Fatal("无法初始化 Ent 客户端", zap.Error(err))
 		return nil
 	}
 
-	// 测试数据库连接
-	if err := conn.Ping(); err != nil {
-		log.Fatal("无法连接到 PostgreSQL 数据库", zap.Error(err))
-		return nil
-	}
-
-	log.Info("成功连接到 PostgreSQL 数据库")
-	return conn
+	log.Info("成功初始化 Ent 客户端")
+	return client
 }

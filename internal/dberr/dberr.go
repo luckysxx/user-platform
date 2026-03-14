@@ -1,21 +1,23 @@
 package dberr
 
 import (
-	"database/sql"
 	"errors"
+	"fmt"
+	"strings"
 
-	"github.com/lib/pq"
+	"github.com/luckysxx/user-platform/internal/ent"
 )
 
 // 数据库特定错误
 var (
-	ErrNoRows           = sql.ErrNoRows
+	ErrNoRows           = errors.New("记录不存在")
 	ErrDuplicateKey     = errors.New("记录已存在")
 	ErrForeignKey       = errors.New("关联记录不存在")
 	ErrCheckViolation   = errors.New("数据校验失败")
 	ErrNotNullViolation = errors.New("必填字段缺失")
 	ErrInvalidData      = errors.New("数据格式错误")
 	ErrConnection       = errors.New("数据库连接失败")
+	ErrConstraint       = errors.New("违反数据约束") // 新增：用于兜底未知的约束错误
 
 	// 用户相关错误
 	ErrUsernameDuplicate = errors.New("用户名已存在")
@@ -25,126 +27,125 @@ var (
 	ErrShortLinkDuplicate = errors.New("短链接已存在")
 )
 
-// PostgreSQL 错误代码
-// 参考: https://www.postgresql.org/docs/current/errcodes-appendix.html
-const (
-	// 完整性约束违反
-	PgErrUniqueViolation     = "23505" // 唯一键冲突
-	PgErrForeignKeyViolation = "23503" // 外键约束违反
-	PgErrCheckViolation      = "23514" // CHECK 约束违反
-	PgErrNotNullViolation    = "23502" // NOT NULL 约束违反
-
-	// 数据异常
-	PgErrInvalidTextRepresentation = "22P02" // 无效的文本表示
-	PgErrNumericValueOutOfRange    = "22003" // 数值超出范围
-	PgErrDivisionByZero            = "22012" // 除零错误
-
-	// 语法错误
-	PgErrSyntaxError     = "42601" // 语法错误
-	PgErrUndefinedColumn = "42703" // 未定义的列
-	PgErrUndefinedTable  = "42P01" // 未定义的表
-
-	// 连接异常
-	PgErrConnectionException    = "08000" // 连接异常
-	PgErrConnectionDoesNotExist = "08003" // 连接不存在
-	PgErrConnectionFailure      = "08006" // 连接失败
-)
-
 // ParseDBError 解析数据库错误并转换为业务错误
-// 返回标准 Go error，由 Handler 层负责转换为 CustomError
 func ParseDBError(err error) error {
 	if err == nil {
 		return nil
 	}
 
-	// 1. 检查是否是 sql.ErrNoRows（记录不存在）
-	if errors.Is(err, sql.ErrNoRows) {
+	// 1. 记录不存在
+	if ent.IsNotFound(err) {
 		return ErrNoRows
 	}
 
-	// 2. 检查是否是 PostgreSQL 特定错误
-	var pqErr *pq.Error
-	if errors.As(err, &pqErr) {
-		return parsePgError(pqErr)
+	// 2. 检查是否是 ent 内存层面的校验错误
+	if ent.IsValidationError(err) {
+		return ErrInvalidData
 	}
 
-	// 3. 其他数据库错误原样返回
+	// 3. 约束错误 (数据库层面抛出的)
+	if ent.IsConstraintError(err) {
+		if mappedErr := parseEntConstraintError(err); mappedErr != nil {
+			return mappedErr
+		}
+		// 如果匹配不到具体的错误名，返回一个通用的约束错误，而不是写死 DuplicateKey
+		return ErrConstraint
+	}
+
+	// 4. 处理系统级/网络级错误 (不再包在 Constraint 里面)
+	msg := strings.ToLower(err.Error())
+	if strings.Contains(msg, "connection refused") ||
+		strings.Contains(msg, "broken pipe") ||
+		strings.Contains(msg, "connection reset") ||
+		strings.Contains(msg, "dial tcp") {
+		return ErrConnection
+	}
+
+	// 5. 其他数据库错误原样返回
 	return err
 }
 
-// parsePgError 解析 PostgreSQL 特定错误
-func parsePgError(pqErr *pq.Error) error {
-	switch pqErr.Code {
-	case PgErrUniqueViolation:
-		// 唯一键冲突 - 根据约束名称返回具体错误
-		if pqErr.Constraint != "" {
-			switch pqErr.Constraint {
-			case "users_username_key":
-				return ErrUsernameDuplicate
-			case "users_email_key":
-				return ErrEmailDuplicate
-			case "pastes_short_link_key":
-				return ErrShortLinkDuplicate
-			}
-		}
+// parseEntConstraintError 尝试从 ent 约束错误文本中提取具体业务错误。
+func parseEntConstraintError(err error) error {
+	msg := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(msg, "users_username_key"):
+		return ErrUsernameDuplicate
+	case strings.Contains(msg, "users_email_key"):
+		return ErrEmailDuplicate
+	case strings.Contains(msg, "pastes_short_link_key"):
+		return ErrShortLinkDuplicate
+	case strings.Contains(msg, "duplicate key") || strings.Contains(msg, "unique constraint") || strings.Contains(msg, "already exists"):
 		return ErrDuplicateKey
-
-	case PgErrForeignKeyViolation:
+	case strings.Contains(msg, "foreign key"):
 		return ErrForeignKey
-
-	case PgErrCheckViolation:
-		return ErrCheckViolation
-
-	case PgErrNotNullViolation:
+	case strings.Contains(msg, "not-null") || strings.Contains(msg, "not null"):
 		return ErrNotNullViolation
-
-	case PgErrInvalidTextRepresentation, PgErrNumericValueOutOfRange:
-		return ErrInvalidData
-
-	case PgErrConnectionException, PgErrConnectionDoesNotExist, PgErrConnectionFailure:
-		return ErrConnection
-
-	case PgErrUndefinedColumn, PgErrUndefinedTable, PgErrSyntaxError:
-		// 开发错误，返回原始错误
-		return pqErr
-
+	case strings.Contains(msg, "check constraint"):
+		return ErrCheckViolation
 	default:
-		// 未知的 PostgreSQL 错误
-		return pqErr
+		return nil
 	}
 }
 
 // IsDuplicateKeyError 检查是否是唯一键冲突错误
 func IsDuplicateKeyError(err error) bool {
-	var pqErr *pq.Error
-	if errors.As(err, &pqErr) {
-		return pqErr.Code == PgErrUniqueViolation
+	if err == nil {
+		return false
+	}
+
+	if errors.Is(err, ErrDuplicateKey) ||
+		errors.Is(err, ErrUsernameDuplicate) ||
+		errors.Is(err, ErrEmailDuplicate) ||
+		errors.Is(err, ErrShortLinkDuplicate) {
+		return true
+	}
+
+	if ent.IsConstraintError(err) {
+		mappedErr := parseEntConstraintError(err)
+		return mappedErr != nil && IsDuplicateKeyError(mappedErr)
 	}
 	return false
 }
 
 // IsForeignKeyError 检查是否是外键约束错误
 func IsForeignKeyError(err error) bool {
-	var pqErr *pq.Error
-	if errors.As(err, &pqErr) {
-		return pqErr.Code == PgErrForeignKeyViolation
+	if err == nil {
+		return false
+	}
+
+	if errors.Is(err, ErrForeignKey) {
+		return true
+	}
+
+	if ent.IsConstraintError(err) {
+		mappedErr := parseEntConstraintError(err)
+		return mappedErr != nil && IsForeignKeyError(mappedErr)
 	}
 	return false
 }
 
 // IsNotFoundError 检查是否是记录不存在错误
 func IsNotFoundError(err error) bool {
-	return errors.Is(err, sql.ErrNoRows)
+	if err == nil {
+		return false
+	}
+	return errors.Is(err, ErrNoRows) || ent.IsNotFound(err)
 }
 
 // IsConnectionError 检查是否是连接错误
 func IsConnectionError(err error) bool {
-	var pqErr *pq.Error
-	if errors.As(err, &pqErr) {
-		code := string(pqErr.Code)
-		return code == PgErrConnectionException ||
-			code == PgErrConnectionDoesNotExist ||
-			code == PgErrConnectionFailure
+	if err == nil {
+		return false
+	}
+
+	if errors.Is(err, ErrConnection) {
+		return true
+	}
+
+	mappedErr := parseEntConstraintError(err)
+	if mappedErr != nil {
+		return errors.Is(mappedErr, ErrConnection)
 	}
 	return false
 }
@@ -155,5 +156,5 @@ func WrapDBError(err error, operation string) error {
 	if err == nil {
 		return nil
 	}
-	return errors.New(operation + ": " + err.Error())
+	return fmt.Errorf("%s: %w", operation, err)
 }

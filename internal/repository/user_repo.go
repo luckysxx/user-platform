@@ -3,35 +3,56 @@ package repository
 import (
 	"context"
 
-	"github.com/luckysxx/user-platform/internal/db"
 	"github.com/luckysxx/user-platform/internal/dberr"
+	"github.com/luckysxx/user-platform/internal/ent"
+	"github.com/luckysxx/user-platform/internal/ent/user"
 )
 
 type UserRepository interface {
-	Create(ctx context.Context, parms *db.CreateUserParams) (*db.User, error)
-	GetByUsername(ctx context.Context, username string) (*db.User, error)
+	Create(ctx context.Context, username string, passwordhash string) (*ent.User, error)
+	GetByUsername(ctx context.Context, username string) (*ent.User, error)
+	GetByID(ctx context.Context, id int64) (*ent.User, error)
 }
 
 type userRepository struct {
-	q *db.Queries
+	client *ent.Client
 }
 
-func NewUserRepository(q *db.Queries) UserRepository {
-	return &userRepository{q: q}
+func NewUserRepository(client *ent.Client) UserRepository {
+	return &userRepository{client: client}
 }
 
-func (r *userRepository) Create(ctx context.Context, parms *db.CreateUserParams) (*db.User, error) {
-	User, err := r.q.CreateUser(ctx, *parms)
+func (r *userRepository) Create(ctx context.Context, username string, passwordhash string) (*ent.User, error) {
+	u, err := r.client.User.Create().
+		SetUsername(username).
+		SetPassword(passwordhash).
+		Save(ctx)
 	if err != nil {
 		return nil, dberr.ParseDBError(err)
 	}
-	return &User, nil
+	return u, nil
 }
 
-func (r *userRepository) GetByUsername(ctx context.Context, username string) (*db.User, error) {
-	user, err := r.q.GetUserByUsername(ctx, username)
+func (r *userRepository) GetByUsername(ctx context.Context, username string) (*ent.User, error) {
+	u, err := r.client.User.
+		Query().
+		Where(user.UsernameEQ(username)).
+		Where(user.StatusEQ(user.StatusActive)).
+		Only(ctx)
 	if err != nil {
 		return nil, dberr.ParseDBError(err)
 	}
-	return &user, nil
+	return u, nil
+}
+
+func (r *userRepository) GetByID(ctx context.Context, id int64) (*ent.User, error) {
+	u, err := r.client.User.
+		Query().
+		Where(user.IDEQ(id)).
+		Where(user.StatusEQ(user.StatusActive)).
+		Only(ctx)
+	if err != nil {
+		return nil, dberr.ParseDBError(err)
+	}
+	return u, nil
 }

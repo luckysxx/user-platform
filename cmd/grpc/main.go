@@ -9,7 +9,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/luckysxx/user-platform/internal/auth"
-	"github.com/luckysxx/user-platform/internal/db"
+	"github.com/luckysxx/user-platform/internal/cache"
 	"github.com/luckysxx/user-platform/internal/platform/config"
 	"github.com/luckysxx/user-platform/internal/platform/database"
 	"github.com/luckysxx/user-platform/internal/platform/logger"
@@ -37,14 +37,19 @@ func main() {
 	logg := logger.NewLogger("user-grpc")
 	defer logg.Sync()
 	cfg := config.LoadConfig()
-	conn := database.InitPostgres(cfg.Database, logg)
-	queries := db.New(conn)
-	userRepo := repository.NewUserRepository(queries)
+	entClient := database.InitEntClient(cfg.Database, logg)
+	defer entClient.Close()
+	redisClient := cache.InitRedis(cfg.Redis, logg)
+	defer redisClient.Close()
+
+	userRepo := repository.NewUserRepository(entClient)
+	userSvc := service.NewUserService(userRepo, logg)
 	jwtManager := auth.NewJWTManager(cfg.JWT.Secret)
-	userSvc := service.NewUserService(userRepo, jwtManager, logg)
+	authSvc := service.NewAuthService(userRepo, redisClient, jwtManager, logg)
 
 	s := grpc.NewServer()
 	pb.RegisterUserServiceServer(s, usergrpcserver.NewUserServer(userSvc, logg))
+	pb.RegisterAuthServiceServer(s, usergrpcserver.NewAuthServer(authSvc, logg))
 	logg.Info("user grpc listening", zap.String("port", port))
 
 	go func() {

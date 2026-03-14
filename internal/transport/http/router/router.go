@@ -18,6 +18,7 @@ func SetupRouter(r *gin.Engine, userHandler *handler.UserHandler, log *zap.Logge
 		{
 			users.POST("/register", userHandler.Register)
 			users.POST("/login", userHandler.Login)
+			users.POST("/refresh", userHandler.RefreshToken)
 		}
 	}
 }

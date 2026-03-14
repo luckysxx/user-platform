@@ -1,4 +1,4 @@
-.PHONY: init-networks local-infra-up local-infra-down local-run local-run-http local-run-grpc local-test docker-up docker-down docker-logs ps health
+.PHONY: init-networks local-infra-up local-infra-down local-run local-run-http local-run-grpc local-test proto-gen docker-up docker-down docker-logs ps health
 
 NETWORK_EXTERNAL = gopher-net
 NETWORK_INTERNAL = platform-internal
@@ -25,6 +25,9 @@ local-run-grpc:
 
 local-test:
 	go test ./...
+
+proto-gen:
+	protoc --proto_path=. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative proto/user/user_api.proto proto/user/auth_api.proto
 
 docker-up: init-networks
 	docker compose $(COMPOSE_FILES) up -d --build

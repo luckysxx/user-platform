@@ -1,0 +1,47 @@
+package service
+
+import (
+	"context"
+
+	"github.com/luckysxx/user-platform/internal/repository"
+	servicecontract "github.com/luckysxx/user-platform/internal/service/contract"
+
+	"go.uber.org/zap"
+	"golang.org/x/crypto/bcrypt"
+)
+
+type UserService interface {
+	Register(ctx context.Context, req *servicecontract.RegisterCommand) (*servicecontract.RegisterResult, error)
+}
+
+type userService struct {
+	repo   repository.UserRepository
+	logger *zap.Logger
+}
+
+func NewUserService(repo repository.UserRepository, logger *zap.Logger) UserService {
+	return &userService{repo: repo, logger: logger}
+}
+
+func (s *userService) Register(ctx context.Context, req *servicecontract.RegisterCommand) (*servicecontract.RegisterResult, error) {
+	// 加密密码
+	hashedPwd, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		s.logger.Error("密码加密失败", zap.Error(err))
+		return nil, err
+	}
+
+	// 调用数据库创建用户
+	user, err := s.repo.Create(ctx, req.Username, string(hashedPwd))
+	if err != nil {
+		s.logger.Error("创建用户失败", zap.Error(err))
+		return nil, err
+	}
+
+	resp := &servicecontract.RegisterResult{
+		UserID:   user.ID,
+		Username: user.Username,
+	}
+
+	return resp, nil
+}

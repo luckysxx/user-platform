@@ -43,7 +43,7 @@ func AuthenticateBearerToken(jwtManager *JWTManager, authHeader string) (int64, 
 		return 0, err
 	}
 
-	claims, err := jwtManager.ParseToken(token)
+	claims, err := jwtManager.VerifyToken(token)
 	if err != nil {
 		return 0, fmt.Errorf("%w: %v", ErrInvalidOrExpiredToken, err)
 	}

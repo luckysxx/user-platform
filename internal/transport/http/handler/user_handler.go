@@ -16,12 +16,13 @@ import (
 )
 
 type UserHandler struct {
+	avc    service.AuthService
 	svc    service.UserService
 	logger *zap.Logger
 }
 
-func NewUserHandler(svc service.UserService, logger *zap.Logger) *UserHandler {
-	return &UserHandler{svc: svc, logger: logger}
+func NewUserHandler(svc service.UserService, avc service.AuthService, logger *zap.Logger) *UserHandler {
+	return &UserHandler{svc: svc, avc: avc, logger: logger}
 }
 
 // @Summary      用户注册
@@ -45,7 +46,6 @@ func (h *UserHandler) Register(c *gin.Context) {
 	user, err := h.svc.Register(c.Request.Context(), &servicecontract.RegisterCommand{
 		Username: req.Username,
 		Password: req.Password,
-		Email:    req.Email,
 	})
 	if err != nil {
 		h.logger.Error("用户注册失败", zap.Error(err))
@@ -55,7 +55,6 @@ func (h *UserHandler) Register(c *gin.Context) {
 	response.Success(c, &httpdto.RegisterResponse{
 		UserID:   user.UserID,
 		Username: user.Username,
-		Email:    user.Email,
 	})
 }
 
@@ -77,7 +76,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 		return
 	}
 
-	user, err := h.svc.Login(c.Request.Context(), &servicecontract.LoginCommand{
+	user, err := h.avc.Login(c.Request.Context(), &servicecontract.LoginCommand{
 		Username: req.Username,
 		Password: req.Password,
 	})
@@ -95,9 +94,32 @@ func (h *UserHandler) Login(c *gin.Context) {
 		return
 	}
 	response.Success(c, &httpdto.LoginResponse{
-		Token:    user.Token,
-		UserID:   user.UserID,
-		Username: user.Username,
-		Email:    user.Email,
+		AccessToken:  user.AccessToken,
+		RefreshToken: user.RefreshToken,
+		UserID:       user.UserID,
+		Username:     user.Username,
+	})
+}
+
+func (h *UserHandler) RefreshToken(c *gin.Context) {
+	var req httpdto.RefreshTokenRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errMsg := validator.TranslateValidationError(err)
+		h.logger.Warn("参数验证失败", zap.Error(err), zap.String("message", errMsg))
+		response.BadRequest(c, errMsg)
+		return
+	}
+
+	token, err := h.avc.RefreshToken(c.Request.Context(), &servicecontract.RefreshTokenCommand{
+		Token: req.Token,
+	})
+	if err != nil {
+		h.logger.Error("刷新 Token 失败", zap.Error(err))
+		response.Error(c, httperrs.ConvertToCustomError(err))
+		return
+	}
+	response.Success(c, &httpdto.RefreshTokenResponse{
+		AccessToken:  token.AccessToken,
+		RefreshToken: token.RefreshToken,
 	})
 }

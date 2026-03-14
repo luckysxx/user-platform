@@ -2,10 +2,9 @@ package main
 
 import (
 	"github.com/gin-gonic/gin"
-	_ "github.com/lib/pq"
 
 	"github.com/luckysxx/user-platform/internal/auth"
-	"github.com/luckysxx/user-platform/internal/db"
+	"github.com/luckysxx/user-platform/internal/cache"
 	"github.com/luckysxx/user-platform/internal/platform/config"
 	"github.com/luckysxx/user-platform/internal/platform/database"
 	"github.com/luckysxx/user-platform/internal/platform/logger"
@@ -25,13 +24,16 @@ func main() {
 	defer log.Sync()
 
 	cfg := config.LoadConfig()
-	conn := database.InitPostgres(cfg.Database, log)
-	queries := db.New(conn)
+	entClient := database.InitEntClient(cfg.Database, log)
+	defer entClient.Close()
+	redisClient := cache.InitRedis(cfg.Redis, log)
+	defer redisClient.Close()
 
-	userRepo := repository.NewUserRepository(queries)
+	userRepo := repository.NewUserRepository(entClient)
 	jwtManager := auth.NewJWTManager(cfg.JWT.Secret)
-	userSvc := service.NewUserService(userRepo, jwtManager, log)
-	userHandler := handler.NewUserHandler(userSvc, log)
+	userSvc := service.NewUserService(userRepo, log)
+	authSvc := service.NewAuthService(userRepo, redisClient, jwtManager, log)
+	userHandler := handler.NewUserHandler(userSvc, authSvc, log)
 
 	r := gin.New()
 	httprouter.SetupRouter(r, userHandler, log)
