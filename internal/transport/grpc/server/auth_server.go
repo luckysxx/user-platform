@@ -8,7 +8,7 @@ import (
 	"github.com/luckysxx/user-platform/internal/service"
 	servicecontract "github.com/luckysxx/user-platform/internal/service/contract"
 	grpcerrs "github.com/luckysxx/user-platform/internal/transport/grpc/errs"
-	pb "github.com/luckysxx/user-platform/proto/user"
+	pb "github.com/luckysxx/user-platform/proto/auth"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

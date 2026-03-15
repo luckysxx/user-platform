@@ -16,7 +16,8 @@ import (
 	"github.com/luckysxx/user-platform/internal/repository"
 	"github.com/luckysxx/user-platform/internal/service"
 	usergrpcserver "github.com/luckysxx/user-platform/internal/transport/grpc/server"
-	pb "github.com/luckysxx/user-platform/proto/user"
+	auth_pb "github.com/luckysxx/user-platform/proto/auth"
+	user_pb "github.com/luckysxx/user-platform/proto/user"
 
 	"go.uber.org/zap"
 )
@@ -48,8 +49,8 @@ func main() {
 	authSvc := service.NewAuthService(userRepo, redisClient, jwtManager, logg)
 
 	s := grpc.NewServer()
-	pb.RegisterUserServiceServer(s, usergrpcserver.NewUserServer(userSvc, logg))
-	pb.RegisterAuthServiceServer(s, usergrpcserver.NewAuthServer(authSvc, logg))
+	user_pb.RegisterUserServiceServer(s, usergrpcserver.NewUserServer(userSvc, logg))
+	auth_pb.RegisterAuthServiceServer(s, usergrpcserver.NewAuthServer(authSvc, logg))
 	logg.Info("user grpc listening", zap.String("port", port))
 
 	go func() {
