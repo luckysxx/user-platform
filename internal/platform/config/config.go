@@ -8,6 +8,7 @@ import (
 )
 
 type Config struct {
+	AppEnv   string
 	Server   ServerConfig
 	Database DatabaseConfig
 	Redis    RedisConfig
@@ -19,8 +20,9 @@ type ServerConfig struct {
 }
 
 type DatabaseConfig struct {
-	Driver string
-	Source string
+	Driver      string
+	Source      string
+	AutoMigrate bool
 }
 
 type RedisConfig struct {
@@ -43,14 +45,18 @@ func LoadConfig() *Config {
 	// 支持其他数据库：mysql://user:password@host:port/dbname
 	dbSource := getEnv("DB_SOURCE",
 		"postgres://luckys:123456@localhost:5432/gopher_paste?sslmode=disable")
+	appEnv := getEnv("APP_ENV", "development")
+	autoMigrateDefault := appEnv != "production"
 
 	return &Config{
+		AppEnv: appEnv,
 		Server: ServerConfig{
 			Port: getEnv("SERVER_PORT", "8080"),
 		},
 		Database: DatabaseConfig{
-			Driver: getEnv("DB_DRIVER", "postgres"),
-			Source: dbSource,
+			Driver:      getEnv("DB_DRIVER", "postgres"),
+			Source:      dbSource,
+			AutoMigrate: getEnvAsBool("DB_AUTO_MIGRATE", autoMigrateDefault),
 		},
 		Redis: RedisConfig{
 			Addr:     getEnv("REDIS_ADDR", "localhost:6379"),
@@ -74,6 +80,15 @@ func getEnvAsInt(key string, defaultVal int) int {
 	if val := os.Getenv(key); val != "" {
 		if intVal, err := strconv.Atoi(val); err == nil {
 			return intVal
+		}
+	}
+	return defaultVal
+}
+
+func getEnvAsBool(key string, defaultVal bool) bool {
+	if val := os.Getenv(key); val != "" {
+		if boolVal, err := strconv.ParseBool(val); err == nil {
+			return boolVal
 		}
 	}
 	return defaultVal

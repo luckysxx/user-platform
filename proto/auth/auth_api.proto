@@ -5,10 +5,9 @@ option go_package = "./;user";
 package user;
 
 message LoginRequest {
-    string access_token = 1;
-    string refresh_token = 2;
-    string username = 3;
-    string password = 4;
+    string username = 1;
+    string password = 2;
+    string app_code = 3;
 }
 
 message LoginResponse {

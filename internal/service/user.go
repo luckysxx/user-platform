@@ -32,13 +32,14 @@ func (s *userService) Register(ctx context.Context, req *servicecontract.Registe
 	}
 
 	// 调用数据库创建用户
-	user, err := s.repo.Create(ctx, req.Username, string(hashedPwd))
+	user, err := s.repo.Create(ctx, req.Email, req.Username, string(hashedPwd))
 	if err != nil {
 		s.logger.Error("创建用户失败", zap.Error(err))
 		return nil, err
 	}
 
 	resp := &servicecontract.RegisterResult{
+		Email:    user.Email,
 		UserID:   user.ID,
 		Username: user.Username,
 	}

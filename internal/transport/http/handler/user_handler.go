@@ -44,6 +44,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 	}
 
 	user, err := h.svc.Register(c.Request.Context(), &servicecontract.RegisterCommand{
+		Email:    req.Email,
 		Username: req.Username,
 		Password: req.Password,
 	})
@@ -53,6 +54,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 		return
 	}
 	response.Success(c, &httpdto.RegisterResponse{
+		Email:    user.Email,
 		UserID:   user.UserID,
 		Username: user.Username,
 	})
@@ -79,6 +81,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 	user, err := h.avc.Login(c.Request.Context(), &servicecontract.LoginCommand{
 		Username: req.Username,
 		Password: req.Password,
+		AppCode:  req.AppCode,
 	})
 	if err != nil {
 		h.logger.Error("用户登录失败", zap.Error(err))
@@ -86,6 +89,10 @@ func (h *UserHandler) Login(c *gin.Context) {
 		// 登录失败需要特殊处理，不暴露具体原因
 		if errors.Is(err, service.ErrInvalidCredentials) {
 			response.Error(c, pkgerrs.NewParamErr("用户名或密码错误", err))
+			return
+		}
+		if errors.Is(err, service.ErrAppNotFound) {
+			response.Error(c, pkgerrs.NewParamErr("应用不存在", err))
 			return
 		}
 

@@ -25,13 +25,14 @@ func NewAuthServer(avc service.AuthService, logger *zap.Logger) *AuthServer {
 }
 
 func (s *AuthServer) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResponse, error) {
-	if strings.TrimSpace(req.GetUsername()) == "" || strings.TrimSpace(req.GetPassword()) == "" {
-		return nil, status.Error(codes.InvalidArgument, "username/password are required")
+	if strings.TrimSpace(req.GetUsername()) == "" || strings.TrimSpace(req.GetPassword()) == "" || strings.TrimSpace(req.GetAppCode()) == "" {
+		return nil, status.Error(codes.InvalidArgument, "username/password/app_code are required")
 	}
 
 	resp, err := s.avc.Login(ctx, &servicecontract.LoginCommand{
 		Username: req.GetUsername(),
 		Password: req.GetPassword(),
+		AppCode:  req.GetAppCode(),
 	})
 	if err != nil {
 		s.logger.Error("grpc login failed", zap.Error(err))
@@ -39,6 +40,8 @@ func (s *AuthServer) Login(ctx context.Context, req *pb.LoginRequest) (*pb.Login
 		switch {
 		case errors.Is(err, service.ErrInvalidCredentials):
 			return nil, status.Error(codes.Unauthenticated, "用户名或密码错误")
+		case errors.Is(err, service.ErrAppNotFound):
+			return nil, status.Error(codes.InvalidArgument, "app_code does not exist")
 		case errors.Is(err, service.ErrTokenGeneration):
 			return nil, status.Error(codes.Internal, "internal error")
 		default:

@@ -14,7 +14,10 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/luckysxx/user-platform/internal/ent/app"
 	"github.com/luckysxx/user-platform/internal/ent/user"
+	"github.com/luckysxx/user-platform/internal/ent/userappprofile"
 )
 
 // Client is the client that holds all ent builders.
@@ -22,8 +25,12 @@ type Client struct {
 	config
 	// Schema is the client for creating, migrating and dropping schema.
 	Schema *migrate.Schema
+	// App is the client for interacting with the App builders.
+	App *AppClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
+	// UserAppProfile is the client for interacting with the UserAppProfile builders.
+	UserAppProfile *UserAppProfileClient
 }
 
 // NewClient creates a new client configured with the given options.
@@ -35,7 +42,9 @@ func NewClient(opts ...Option) *Client {
 
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
+	c.App = NewAppClient(c.config)
 	c.User = NewUserClient(c.config)
+	c.UserAppProfile = NewUserAppProfileClient(c.config)
 }
 
 type (
@@ -126,9 +135,11 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:    ctx,
-		config: cfg,
-		User:   NewUserClient(cfg),
+		ctx:            ctx,
+		config:         cfg,
+		App:            NewAppClient(cfg),
+		User:           NewUserClient(cfg),
+		UserAppProfile: NewUserAppProfileClient(cfg),
 	}, nil
 }
 
@@ -146,16 +157,18 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:    ctx,
-		config: cfg,
-		User:   NewUserClient(cfg),
+		ctx:            ctx,
+		config:         cfg,
+		App:            NewAppClient(cfg),
+		User:           NewUserClient(cfg),
+		UserAppProfile: NewUserAppProfileClient(cfg),
 	}, nil
 }
 
 // Debug returns a new debug-client. It's used to get verbose logging on specific operations.
 //
 //	client.Debug().
-//		User.
+//		App.
 //		Query().
 //		Count(ctx)
 func (c *Client) Debug() *Client {
@@ -177,22 +190,179 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
+	c.App.Use(hooks...)
 	c.User.Use(hooks...)
+	c.UserAppProfile.Use(hooks...)
 }
 
 // Intercept adds the query interceptors to all the entity clients.
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
+	c.App.Intercept(interceptors...)
 	c.User.Intercept(interceptors...)
+	c.UserAppProfile.Intercept(interceptors...)
 }
 
 // Mutate implements the ent.Mutator interface.
 func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
+	case *AppMutation:
+		return c.App.mutate(ctx, m)
 	case *UserMutation:
 		return c.User.mutate(ctx, m)
+	case *UserAppProfileMutation:
+		return c.UserAppProfile.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
+	}
+}
+
+// AppClient is a client for the App schema.
+type AppClient struct {
+	config
+}
+
+// NewAppClient returns a client for the App from the given config.
+func NewAppClient(c config) *AppClient {
+	return &AppClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `app.Hooks(f(g(h())))`.
+func (c *AppClient) Use(hooks ...Hook) {
+	c.hooks.App = append(c.hooks.App, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `app.Intercept(f(g(h())))`.
+func (c *AppClient) Intercept(interceptors ...Interceptor) {
+	c.inters.App = append(c.inters.App, interceptors...)
+}
+
+// Create returns a builder for creating a App entity.
+func (c *AppClient) Create() *AppCreate {
+	mutation := newAppMutation(c.config, OpCreate)
+	return &AppCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of App entities.
+func (c *AppClient) CreateBulk(builders ...*AppCreate) *AppCreateBulk {
+	return &AppCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *AppClient) MapCreateBulk(slice any, setFunc func(*AppCreate, int)) *AppCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &AppCreateBulk{err: fmt.Errorf("calling to AppClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*AppCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &AppCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for App.
+func (c *AppClient) Update() *AppUpdate {
+	mutation := newAppMutation(c.config, OpUpdate)
+	return &AppUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *AppClient) UpdateOne(_m *App) *AppUpdateOne {
+	mutation := newAppMutation(c.config, OpUpdateOne, withApp(_m))
+	return &AppUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *AppClient) UpdateOneID(id int) *AppUpdateOne {
+	mutation := newAppMutation(c.config, OpUpdateOne, withAppID(id))
+	return &AppUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for App.
+func (c *AppClient) Delete() *AppDelete {
+	mutation := newAppMutation(c.config, OpDelete)
+	return &AppDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *AppClient) DeleteOne(_m *App) *AppDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *AppClient) DeleteOneID(id int) *AppDeleteOne {
+	builder := c.Delete().Where(app.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &AppDeleteOne{builder}
+}
+
+// Query returns a query builder for App.
+func (c *AppClient) Query() *AppQuery {
+	return &AppQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeApp},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a App entity by its id.
+func (c *AppClient) Get(ctx context.Context, id int) (*App, error) {
+	return c.Query().Where(app.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *AppClient) GetX(ctx context.Context, id int) *App {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryProfiles queries the profiles edge of a App.
+func (c *AppClient) QueryProfiles(_m *App) *UserAppProfileQuery {
+	query := (&UserAppProfileClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(app.Table, app.FieldID, id),
+			sqlgraph.To(userappprofile.Table, userappprofile.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, app.ProfilesTable, app.ProfilesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *AppClient) Hooks() []Hook {
+	return c.hooks.App
+}
+
+// Interceptors returns the client interceptors.
+func (c *AppClient) Interceptors() []Interceptor {
+	return c.inters.App
+}
+
+func (c *AppClient) mutate(ctx context.Context, m *AppMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&AppCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&AppUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&AppUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&AppDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown App mutation op: %q", m.Op())
 	}
 }
 
@@ -304,6 +474,22 @@ func (c *UserClient) GetX(ctx context.Context, id int64) *User {
 	return obj
 }
 
+// QueryProfiles queries the profiles edge of a User.
+func (c *UserClient) QueryProfiles(_m *User) *UserAppProfileQuery {
+	query := (&UserAppProfileClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(userappprofile.Table, userappprofile.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.ProfilesTable, user.ProfilesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *UserClient) Hooks() []Hook {
 	return c.hooks.User
@@ -329,12 +515,177 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 	}
 }
 
+// UserAppProfileClient is a client for the UserAppProfile schema.
+type UserAppProfileClient struct {
+	config
+}
+
+// NewUserAppProfileClient returns a client for the UserAppProfile from the given config.
+func NewUserAppProfileClient(c config) *UserAppProfileClient {
+	return &UserAppProfileClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `userappprofile.Hooks(f(g(h())))`.
+func (c *UserAppProfileClient) Use(hooks ...Hook) {
+	c.hooks.UserAppProfile = append(c.hooks.UserAppProfile, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `userappprofile.Intercept(f(g(h())))`.
+func (c *UserAppProfileClient) Intercept(interceptors ...Interceptor) {
+	c.inters.UserAppProfile = append(c.inters.UserAppProfile, interceptors...)
+}
+
+// Create returns a builder for creating a UserAppProfile entity.
+func (c *UserAppProfileClient) Create() *UserAppProfileCreate {
+	mutation := newUserAppProfileMutation(c.config, OpCreate)
+	return &UserAppProfileCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of UserAppProfile entities.
+func (c *UserAppProfileClient) CreateBulk(builders ...*UserAppProfileCreate) *UserAppProfileCreateBulk {
+	return &UserAppProfileCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *UserAppProfileClient) MapCreateBulk(slice any, setFunc func(*UserAppProfileCreate, int)) *UserAppProfileCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &UserAppProfileCreateBulk{err: fmt.Errorf("calling to UserAppProfileClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*UserAppProfileCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &UserAppProfileCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for UserAppProfile.
+func (c *UserAppProfileClient) Update() *UserAppProfileUpdate {
+	mutation := newUserAppProfileMutation(c.config, OpUpdate)
+	return &UserAppProfileUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *UserAppProfileClient) UpdateOne(_m *UserAppProfile) *UserAppProfileUpdateOne {
+	mutation := newUserAppProfileMutation(c.config, OpUpdateOne, withUserAppProfile(_m))
+	return &UserAppProfileUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *UserAppProfileClient) UpdateOneID(id int) *UserAppProfileUpdateOne {
+	mutation := newUserAppProfileMutation(c.config, OpUpdateOne, withUserAppProfileID(id))
+	return &UserAppProfileUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for UserAppProfile.
+func (c *UserAppProfileClient) Delete() *UserAppProfileDelete {
+	mutation := newUserAppProfileMutation(c.config, OpDelete)
+	return &UserAppProfileDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *UserAppProfileClient) DeleteOne(_m *UserAppProfile) *UserAppProfileDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *UserAppProfileClient) DeleteOneID(id int) *UserAppProfileDeleteOne {
+	builder := c.Delete().Where(userappprofile.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &UserAppProfileDeleteOne{builder}
+}
+
+// Query returns a query builder for UserAppProfile.
+func (c *UserAppProfileClient) Query() *UserAppProfileQuery {
+	return &UserAppProfileQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeUserAppProfile},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a UserAppProfile entity by its id.
+func (c *UserAppProfileClient) Get(ctx context.Context, id int) (*UserAppProfile, error) {
+	return c.Query().Where(userappprofile.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *UserAppProfileClient) GetX(ctx context.Context, id int) *UserAppProfile {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryUser queries the user edge of a UserAppProfile.
+func (c *UserAppProfileClient) QueryUser(_m *UserAppProfile) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(userappprofile.Table, userappprofile.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, userappprofile.UserTable, userappprofile.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryApp queries the app edge of a UserAppProfile.
+func (c *UserAppProfileClient) QueryApp(_m *UserAppProfile) *AppQuery {
+	query := (&AppClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(userappprofile.Table, userappprofile.FieldID, id),
+			sqlgraph.To(app.Table, app.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, userappprofile.AppTable, userappprofile.AppColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *UserAppProfileClient) Hooks() []Hook {
+	return c.hooks.UserAppProfile
+}
+
+// Interceptors returns the client interceptors.
+func (c *UserAppProfileClient) Interceptors() []Interceptor {
+	return c.inters.UserAppProfile
+}
+
+func (c *UserAppProfileClient) mutate(ctx context.Context, m *UserAppProfileMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&UserAppProfileCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&UserAppProfileUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&UserAppProfileUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&UserAppProfileDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown UserAppProfile mutation op: %q", m.Op())
+	}
+}
+
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		User []ent.Hook
+		App, User, UserAppProfile []ent.Hook
 	}
 	inters struct {
-		User []ent.Interceptor
+		App, User, UserAppProfile []ent.Interceptor
 	}
 )

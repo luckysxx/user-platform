@@ -1,12 +1,13 @@
 # user-platform
 
-一个基于 Go 的 User 中台服务，提供用户注册、登录、Token 刷新能力，同时暴露 HTTP 和 gRPC 两种协议。
+一个基于 Go 的 User 中台服务，提供统一账号注册、按应用登录签发 Token、Token 刷新能力，同时暴露 HTTP 和 gRPC 两种协议。
 
 ## 功能特性
 
-- 用户注册（用户名 + 密码）
-- 用户登录（签发 Access Token + Refresh Token）
+- 用户注册（邮箱 + 用户名 + 密码）
+- 用户登录（携带 app_code，签发 Access Token + Refresh Token）
 - Refresh Token 轮换刷新
+- 统一账号体系（所有应用共用一套账号密码，首次登录应用自动建立授权关系）
 - HTTP API（Gin）
 - gRPC API（grpc-go）
 - PostgreSQL（Ent）持久化
@@ -55,8 +56,10 @@ DB_SOURCE=postgres://luckys:123456@localhost:5432/user_platform?sslmode=disable
 
 默认常用配置项：
 
+- APP_ENV=development（production 下默认关闭自动 migration）
 - SERVER_PORT=8081
 - USER_GRPC_PORT=9091（仅 gRPC 入口读取）
+- DB_AUTO_MIGRATE=true（可一键切换为 false）
 - REDIS_ADDR=localhost:6379
 - REDIS_PASSWORD=123456
 - JWT_SECRET=自定义强随机密钥
@@ -88,11 +91,43 @@ make docker-up
 
 make docker-down
 
+## Docker 运行
+
+本项目使用两个编排文件：
+
+- `docker-compose-infra.yaml`：PostgreSQL、Redis、Prometheus、Grafana、Loki、Promtail
+- `docker-compose-service.yaml`：user-http、user-grpc
+
+推荐直接使用 Make 命令（已封装网络和双 compose 文件）：
+
+```bash
+make docker-up
+make docker-logs
+make docker-down
+```
+
+如需手动执行：
+
+```bash
+docker compose -f docker-compose-infra.yaml -f docker-compose-service.yaml up -d --build
+docker compose -f docker-compose-infra.yaml -f docker-compose-service.yaml down
+```
+
+一键切换迁移策略（容器环境）：
+
+```bash
+# 开发模式（默认）：自动迁移
+APP_ENV=development DB_AUTO_MIGRATE=true make docker-up
+
+# 生产模式：关闭自动迁移
+APP_ENV=production DB_AUTO_MIGRATE=false make docker-up
+```
+
 ## HTTP API
 
 Base URL:
 
-http://localhost:8081/api/v1
+<http://localhost:8081/api/v1>
 
 接口列表：
 
@@ -102,33 +137,37 @@ http://localhost:8081/api/v1
 
 ### 注册示例
 
+```bash
 curl -X POST 'http://localhost:8081/api/v1/users/register' \
   -H 'Content-Type: application/json' \
   -d '{
+    "email": "alice@example.com",
     "username": "alice123",
     "password": "Password123"
   }'
+```
 
 ### 登录示例
 
-注意：当前代码中的登录 DTO 将 access_token、refresh_token 也标记为了必填字段，建议先传占位值。
-
+```bash
 curl -X POST 'http://localhost:8081/api/v1/users/login' \
   -H 'Content-Type: application/json' \
   -d '{
     "username": "alice123",
     "password": "Password123",
-    "access_token": "placeholder",
-    "refresh_token": "placeholder"
+    "app_code": "tomato_novel"
   }'
+```
 
 ### 刷新 Token 示例
 
+```bash
 curl -X POST 'http://localhost:8081/api/v1/users/refresh' \
   -H 'Content-Type: application/json' \
   -d '{
     "token": "<refresh_token>"
   }'
+```
 
 ### 响应格式
 
@@ -146,7 +185,7 @@ curl -X POST 'http://localhost:8081/api/v1/users/refresh' \
 
 地址：
 
-localhost:9091
+`localhost:9091`
 
 服务定义：
 
@@ -156,14 +195,16 @@ localhost:9091
 
 使用 grpcurl 示例（明文）：
 
-grpcurl -plaintext -d '{"username":"alice123","password":"Password123"}' \
+```bash
+grpcurl -plaintext -d '{"email":"alice@example.com","username":"alice123","password":"Password123"}' \
   localhost:9091 user.UserService/Register
 
-grpcurl -plaintext -d '{"username":"alice123","password":"Password123"}' \
+grpcurl -plaintext -d '{"username":"alice123","password":"Password123","app_code":"tomato_novel"}' \
   localhost:9091 user.AuthService/Login
 
 grpcurl -plaintext -d '{"token":"<refresh_token>"}' \
   localhost:9091 user.AuthService/RefreshToken
+```
 
 ## 常用 Make 命令
 
@@ -180,12 +221,19 @@ grpcurl -plaintext -d '{"token":"<refresh_token>"}' \
 
 ## 数据库说明
 
-当前服务启动流程未自动执行 Ent Schema Migration。若你使用全新数据库，请先确保存在 users 表。
+当前服务支持 Ent Schema 自动迁移：
 
-可参考最小建表 SQL：
+- `APP_ENV=development` 时，默认自动执行 migration。
+- `APP_ENV=production` 时，默认关闭自动 migration。
+- 也可通过 `DB_AUTO_MIGRATE=true/false` 强制覆盖，做到一键切换。
+
+如果关闭自动 migration，启动前请先确保至少存在 users、apps、user_app_profiles 三张表，并预置可用 app_code。
+
+可参考最小 users 建表 SQL：
 
 CREATE TABLE IF NOT EXISTS users (
-  id BIGSERIAL PRIMARY KEY,
+  id BIGINT PRIMARY KEY,
+  email VARCHAR(255) UNIQUE NOT NULL,
   username VARCHAR(32) UNIQUE NOT NULL,
   password TEXT NOT NULL,
   status VARCHAR(16) NOT NULL DEFAULT 'active',
@@ -197,13 +245,13 @@ CREATE TABLE IF NOT EXISTS users (
 
 基础设施编排中包含：
 
-- Prometheus: http://localhost:9090
-- Grafana: http://localhost:3000（默认账号/密码见 docker-compose-infra.yaml）
-- Loki: http://localhost:3100
+- Prometheus: <http://localhost:9090>
+- Grafana: <http://localhost:3000>（默认账号/密码见 docker-compose-infra.yaml）
+- Loki: <http://localhost:3100>
 
 ## 已知注意项
 
-- HTTP 登录 DTO 当前要求 access_token/refresh_token 必填（即使业务层未使用），后续可在 DTO 校验标签中移除。
+- 登录请求中的 app_code 必须是已存在的应用编码，否则会返回参数错误（app not found）。
 
 ## License
 

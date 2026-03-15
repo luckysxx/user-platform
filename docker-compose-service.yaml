@@ -6,8 +6,9 @@ services:
     ports:
       - "8081:8081"
     environment:
-      - ENV=development
+      - APP_ENV=${APP_ENV:-development}
       - SERVER_PORT=8081
+      - DB_AUTO_MIGRATE=${DB_AUTO_MIGRATE:-true}
       - DB_SOURCE=postgres://luckys:123456@postgres:5432/user_platform?sslmode=disable
       - REDIS_ADDR=redis:6379
       - REDIS_PASSWORD=123456
@@ -35,8 +36,9 @@ services:
     ports:
       - "9091:9091"
     environment:
-      - ENV=development
+      - APP_ENV=${APP_ENV:-development}
       - USER_GRPC_PORT=9091
+      - DB_AUTO_MIGRATE=${DB_AUTO_MIGRATE:-true}
       - DB_SOURCE=postgres://luckys:123456@postgres:5432/user_platform?sslmode=disable
       - REDIS_ADDR=redis:6379
       - REDIS_PASSWORD=123456

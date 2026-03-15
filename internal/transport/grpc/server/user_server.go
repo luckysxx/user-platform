@@ -26,11 +26,12 @@ func NewUserServer(svc service.UserService, logger *zap.Logger) *UserServer {
 }
 
 func (s *UserServer) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.RegisterResponse, error) {
-	if strings.TrimSpace(req.GetUsername()) == "" || strings.TrimSpace(req.GetPassword()) == "" {
-		return nil, status.Error(codes.InvalidArgument, "username/password are required")
+	if strings.TrimSpace(req.GetEmail()) == "" || strings.TrimSpace(req.GetUsername()) == "" || strings.TrimSpace(req.GetPassword()) == "" {
+		return nil, status.Error(codes.InvalidArgument, "email/username/password are required")
 	}
 
 	resp, err := s.svc.Register(ctx, &servicecontract.RegisterCommand{
+		Email:    req.GetEmail(),
 		Username: req.GetUsername(),
 		Password: req.GetPassword(),
 	})

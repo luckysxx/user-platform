@@ -5,18 +5,48 @@ package ent
 import (
 	"time"
 
+	"github.com/luckysxx/user-platform/internal/ent/app"
 	"github.com/luckysxx/user-platform/internal/ent/schema"
 	"github.com/luckysxx/user-platform/internal/ent/user"
+	"github.com/luckysxx/user-platform/internal/ent/userappprofile"
 )
 
 // The init function reads all schema descriptors with runtime code
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	appFields := schema.App{}.Fields()
+	_ = appFields
+	// appDescAppCode is the schema descriptor for app_code field.
+	appDescAppCode := appFields[0].Descriptor()
+	// app.AppCodeValidator is a validator for the "app_code" field. It is called by the builders before save.
+	app.AppCodeValidator = appDescAppCode.Validators[0].(func(string) error)
+	// appDescAppName is the schema descriptor for app_name field.
+	appDescAppName := appFields[1].Descriptor()
+	// app.AppNameValidator is a validator for the "app_name" field. It is called by the builders before save.
+	app.AppNameValidator = appDescAppName.Validators[0].(func(string) error)
 	userFields := schema.User{}.Fields()
 	_ = userFields
+	// userDescEmail is the schema descriptor for email field.
+	userDescEmail := userFields[1].Descriptor()
+	// user.EmailValidator is a validator for the "email" field. It is called by the builders before save.
+	user.EmailValidator = func() func(string) error {
+		validators := userDescEmail.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(email string) error {
+			for _, fn := range fns {
+				if err := fn(email); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
 	// userDescUsername is the schema descriptor for username field.
-	userDescUsername := userFields[1].Descriptor()
+	userDescUsername := userFields[2].Descriptor()
 	// user.UsernameValidator is a validator for the "username" field. It is called by the builders before save.
 	user.UsernameValidator = func() func(string) error {
 		validators := userDescUsername.Validators
@@ -34,15 +64,15 @@ func init() {
 		}
 	}()
 	// userDescPassword is the schema descriptor for password field.
-	userDescPassword := userFields[2].Descriptor()
+	userDescPassword := userFields[3].Descriptor()
 	// user.PasswordValidator is a validator for the "password" field. It is called by the builders before save.
 	user.PasswordValidator = userDescPassword.Validators[0].(func(string) error)
 	// userDescCreatedAt is the schema descriptor for created_at field.
-	userDescCreatedAt := userFields[4].Descriptor()
+	userDescCreatedAt := userFields[5].Descriptor()
 	// user.DefaultCreatedAt holds the default value on creation for the created_at field.
 	user.DefaultCreatedAt = userDescCreatedAt.Default.(func() time.Time)
 	// userDescUpdatedAt is the schema descriptor for updated_at field.
-	userDescUpdatedAt := userFields[5].Descriptor()
+	userDescUpdatedAt := userFields[6].Descriptor()
 	// user.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	user.DefaultUpdatedAt = userDescUpdatedAt.Default.(func() time.Time)
 	// user.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -51,4 +81,16 @@ func init() {
 	userDescID := userFields[0].Descriptor()
 	// user.IDValidator is a validator for the "id" field. It is called by the builders before save.
 	user.IDValidator = userDescID.Validators[0].(func(int64) error)
+	userappprofileFields := schema.UserAppProfile{}.Fields()
+	_ = userappprofileFields
+	// userappprofileDescFirstAuthorizedAt is the schema descriptor for first_authorized_at field.
+	userappprofileDescFirstAuthorizedAt := userappprofileFields[0].Descriptor()
+	// userappprofile.DefaultFirstAuthorizedAt holds the default value on creation for the first_authorized_at field.
+	userappprofile.DefaultFirstAuthorizedAt = userappprofileDescFirstAuthorizedAt.Default.(func() time.Time)
+	// userappprofileDescLastActiveAt is the schema descriptor for last_active_at field.
+	userappprofileDescLastActiveAt := userappprofileFields[1].Descriptor()
+	// userappprofile.DefaultLastActiveAt holds the default value on creation for the last_active_at field.
+	userappprofile.DefaultLastActiveAt = userappprofileDescLastActiveAt.Default.(func() time.Time)
+	// userappprofile.UpdateDefaultLastActiveAt holds the default value on update for the last_active_at field.
+	userappprofile.UpdateDefaultLastActiveAt = userappprofileDescLastActiveAt.UpdateDefault.(func() time.Time)
 }

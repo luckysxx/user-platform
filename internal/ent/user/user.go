@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 )
 
 const (
@@ -14,6 +15,8 @@ const (
 	Label = "user"
 	// FieldID holds the string denoting the id field in the database.
 	FieldID = "id"
+	// FieldEmail holds the string denoting the email field in the database.
+	FieldEmail = "email"
 	// FieldUsername holds the string denoting the username field in the database.
 	FieldUsername = "username"
 	// FieldPassword holds the string denoting the password field in the database.
@@ -24,13 +27,23 @@ const (
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
+	// EdgeProfiles holds the string denoting the profiles edge name in mutations.
+	EdgeProfiles = "profiles"
 	// Table holds the table name of the user in the database.
 	Table = "users"
+	// ProfilesTable is the table that holds the profiles relation/edge.
+	ProfilesTable = "user_app_profiles"
+	// ProfilesInverseTable is the table name for the UserAppProfile entity.
+	// It exists in this package in order to avoid circular dependency with the "userappprofile" package.
+	ProfilesInverseTable = "user_app_profiles"
+	// ProfilesColumn is the table column denoting the profiles relation/edge.
+	ProfilesColumn = "user_profiles"
 )
 
 // Columns holds all SQL columns for user fields.
 var Columns = []string{
 	FieldID,
+	FieldEmail,
 	FieldUsername,
 	FieldPassword,
 	FieldStatus,
@@ -49,6 +62,8 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// EmailValidator is a validator for the "email" field. It is called by the builders before save.
+	EmailValidator func(string) error
 	// UsernameValidator is a validator for the "username" field. It is called by the builders before save.
 	UsernameValidator func(string) error
 	// PasswordValidator is a validator for the "password" field. It is called by the builders before save.
@@ -98,6 +113,11 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldID, opts...).ToFunc()
 }
 
+// ByEmail orders the results by the email field.
+func ByEmail(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEmail, opts...).ToFunc()
+}
+
 // ByUsername orders the results by the username field.
 func ByUsername(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUsername, opts...).ToFunc()
@@ -121,4 +141,25 @@ func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByUpdatedAt orders the results by the updated_at field.
 func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
+}
+
+// ByProfilesCount orders the results by profiles count.
+func ByProfilesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newProfilesStep(), opts...)
+	}
+}
+
+// ByProfiles orders the results by profiles terms.
+func ByProfiles(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newProfilesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+func newProfilesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ProfilesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ProfilesTable, ProfilesColumn),
+	)
 }

@@ -11,8 +11,10 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
+	"github.com/luckysxx/user-platform/internal/ent/app"
 	"github.com/luckysxx/user-platform/internal/ent/predicate"
 	"github.com/luckysxx/user-platform/internal/ent/user"
+	"github.com/luckysxx/user-platform/internal/ent/userappprofile"
 )
 
 const (
@@ -24,24 +26,503 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeUser = "User"
+	TypeApp            = "App"
+	TypeUser           = "User"
+	TypeUserAppProfile = "UserAppProfile"
 )
+
+// AppMutation represents an operation that mutates the App nodes in the graph.
+type AppMutation struct {
+	config
+	op              Op
+	typ             string
+	id              *int
+	app_code        *string
+	app_name        *string
+	clearedFields   map[string]struct{}
+	profiles        map[int]struct{}
+	removedprofiles map[int]struct{}
+	clearedprofiles bool
+	done            bool
+	oldValue        func(context.Context) (*App, error)
+	predicates      []predicate.App
+}
+
+var _ ent.Mutation = (*AppMutation)(nil)
+
+// appOption allows management of the mutation configuration using functional options.
+type appOption func(*AppMutation)
+
+// newAppMutation creates new mutation for the App entity.
+func newAppMutation(c config, op Op, opts ...appOption) *AppMutation {
+	m := &AppMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeApp,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withAppID sets the ID field of the mutation.
+func withAppID(id int) appOption {
+	return func(m *AppMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *App
+		)
+		m.oldValue = func(ctx context.Context) (*App, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().App.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withApp sets the old App of the mutation.
+func withApp(node *App) appOption {
+	return func(m *AppMutation) {
+		m.oldValue = func(context.Context) (*App, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m AppMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m AppMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *AppMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *AppMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().App.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetAppCode sets the "app_code" field.
+func (m *AppMutation) SetAppCode(s string) {
+	m.app_code = &s
+}
+
+// AppCode returns the value of the "app_code" field in the mutation.
+func (m *AppMutation) AppCode() (r string, exists bool) {
+	v := m.app_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAppCode returns the old "app_code" field's value of the App entity.
+// If the App object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AppMutation) OldAppCode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAppCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAppCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAppCode: %w", err)
+	}
+	return oldValue.AppCode, nil
+}
+
+// ResetAppCode resets all changes to the "app_code" field.
+func (m *AppMutation) ResetAppCode() {
+	m.app_code = nil
+}
+
+// SetAppName sets the "app_name" field.
+func (m *AppMutation) SetAppName(s string) {
+	m.app_name = &s
+}
+
+// AppName returns the value of the "app_name" field in the mutation.
+func (m *AppMutation) AppName() (r string, exists bool) {
+	v := m.app_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAppName returns the old "app_name" field's value of the App entity.
+// If the App object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AppMutation) OldAppName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAppName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAppName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAppName: %w", err)
+	}
+	return oldValue.AppName, nil
+}
+
+// ResetAppName resets all changes to the "app_name" field.
+func (m *AppMutation) ResetAppName() {
+	m.app_name = nil
+}
+
+// AddProfileIDs adds the "profiles" edge to the UserAppProfile entity by ids.
+func (m *AppMutation) AddProfileIDs(ids ...int) {
+	if m.profiles == nil {
+		m.profiles = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.profiles[ids[i]] = struct{}{}
+	}
+}
+
+// ClearProfiles clears the "profiles" edge to the UserAppProfile entity.
+func (m *AppMutation) ClearProfiles() {
+	m.clearedprofiles = true
+}
+
+// ProfilesCleared reports if the "profiles" edge to the UserAppProfile entity was cleared.
+func (m *AppMutation) ProfilesCleared() bool {
+	return m.clearedprofiles
+}
+
+// RemoveProfileIDs removes the "profiles" edge to the UserAppProfile entity by IDs.
+func (m *AppMutation) RemoveProfileIDs(ids ...int) {
+	if m.removedprofiles == nil {
+		m.removedprofiles = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.profiles, ids[i])
+		m.removedprofiles[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedProfiles returns the removed IDs of the "profiles" edge to the UserAppProfile entity.
+func (m *AppMutation) RemovedProfilesIDs() (ids []int) {
+	for id := range m.removedprofiles {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ProfilesIDs returns the "profiles" edge IDs in the mutation.
+func (m *AppMutation) ProfilesIDs() (ids []int) {
+	for id := range m.profiles {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetProfiles resets all changes to the "profiles" edge.
+func (m *AppMutation) ResetProfiles() {
+	m.profiles = nil
+	m.clearedprofiles = false
+	m.removedprofiles = nil
+}
+
+// Where appends a list predicates to the AppMutation builder.
+func (m *AppMutation) Where(ps ...predicate.App) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the AppMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *AppMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.App, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *AppMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *AppMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (App).
+func (m *AppMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *AppMutation) Fields() []string {
+	fields := make([]string, 0, 2)
+	if m.app_code != nil {
+		fields = append(fields, app.FieldAppCode)
+	}
+	if m.app_name != nil {
+		fields = append(fields, app.FieldAppName)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *AppMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case app.FieldAppCode:
+		return m.AppCode()
+	case app.FieldAppName:
+		return m.AppName()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *AppMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case app.FieldAppCode:
+		return m.OldAppCode(ctx)
+	case app.FieldAppName:
+		return m.OldAppName(ctx)
+	}
+	return nil, fmt.Errorf("unknown App field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *AppMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case app.FieldAppCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAppCode(v)
+		return nil
+	case app.FieldAppName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAppName(v)
+		return nil
+	}
+	return fmt.Errorf("unknown App field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *AppMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *AppMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *AppMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown App numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *AppMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *AppMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *AppMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown App nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *AppMutation) ResetField(name string) error {
+	switch name {
+	case app.FieldAppCode:
+		m.ResetAppCode()
+		return nil
+	case app.FieldAppName:
+		m.ResetAppName()
+		return nil
+	}
+	return fmt.Errorf("unknown App field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *AppMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.profiles != nil {
+		edges = append(edges, app.EdgeProfiles)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *AppMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case app.EdgeProfiles:
+		ids := make([]ent.Value, 0, len(m.profiles))
+		for id := range m.profiles {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *AppMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.removedprofiles != nil {
+		edges = append(edges, app.EdgeProfiles)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *AppMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case app.EdgeProfiles:
+		ids := make([]ent.Value, 0, len(m.removedprofiles))
+		for id := range m.removedprofiles {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *AppMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedprofiles {
+		edges = append(edges, app.EdgeProfiles)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *AppMutation) EdgeCleared(name string) bool {
+	switch name {
+	case app.EdgeProfiles:
+		return m.clearedprofiles
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *AppMutation) ClearEdge(name string) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown App unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *AppMutation) ResetEdge(name string) error {
+	switch name {
+	case app.EdgeProfiles:
+		m.ResetProfiles()
+		return nil
+	}
+	return fmt.Errorf("unknown App edge %s", name)
+}
 
 // UserMutation represents an operation that mutates the User nodes in the graph.
 type UserMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *int64
-	username      *string
-	password      *string
-	status        *user.Status
-	created_at    *time.Time
-	updated_at    *time.Time
-	clearedFields map[string]struct{}
-	done          bool
-	oldValue      func(context.Context) (*User, error)
-	predicates    []predicate.User
+	op              Op
+	typ             string
+	id              *int64
+	email           *string
+	username        *string
+	password        *string
+	status          *user.Status
+	created_at      *time.Time
+	updated_at      *time.Time
+	clearedFields   map[string]struct{}
+	profiles        map[int]struct{}
+	removedprofiles map[int]struct{}
+	clearedprofiles bool
+	done            bool
+	oldValue        func(context.Context) (*User, error)
+	predicates      []predicate.User
 }
 
 var _ ent.Mutation = (*UserMutation)(nil)
@@ -146,6 +627,42 @@ func (m *UserMutation) IDs(ctx context.Context) ([]int64, error) {
 	default:
 		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
 	}
+}
+
+// SetEmail sets the "email" field.
+func (m *UserMutation) SetEmail(s string) {
+	m.email = &s
+}
+
+// Email returns the value of the "email" field in the mutation.
+func (m *UserMutation) Email() (r string, exists bool) {
+	v := m.email
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEmail returns the old "email" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldEmail(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEmail is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEmail requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEmail: %w", err)
+	}
+	return oldValue.Email, nil
+}
+
+// ResetEmail resets all changes to the "email" field.
+func (m *UserMutation) ResetEmail() {
+	m.email = nil
 }
 
 // SetUsername sets the "username" field.
@@ -328,6 +845,60 @@ func (m *UserMutation) ResetUpdatedAt() {
 	m.updated_at = nil
 }
 
+// AddProfileIDs adds the "profiles" edge to the UserAppProfile entity by ids.
+func (m *UserMutation) AddProfileIDs(ids ...int) {
+	if m.profiles == nil {
+		m.profiles = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.profiles[ids[i]] = struct{}{}
+	}
+}
+
+// ClearProfiles clears the "profiles" edge to the UserAppProfile entity.
+func (m *UserMutation) ClearProfiles() {
+	m.clearedprofiles = true
+}
+
+// ProfilesCleared reports if the "profiles" edge to the UserAppProfile entity was cleared.
+func (m *UserMutation) ProfilesCleared() bool {
+	return m.clearedprofiles
+}
+
+// RemoveProfileIDs removes the "profiles" edge to the UserAppProfile entity by IDs.
+func (m *UserMutation) RemoveProfileIDs(ids ...int) {
+	if m.removedprofiles == nil {
+		m.removedprofiles = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.profiles, ids[i])
+		m.removedprofiles[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedProfiles returns the removed IDs of the "profiles" edge to the UserAppProfile entity.
+func (m *UserMutation) RemovedProfilesIDs() (ids []int) {
+	for id := range m.removedprofiles {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ProfilesIDs returns the "profiles" edge IDs in the mutation.
+func (m *UserMutation) ProfilesIDs() (ids []int) {
+	for id := range m.profiles {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetProfiles resets all changes to the "profiles" edge.
+func (m *UserMutation) ResetProfiles() {
+	m.profiles = nil
+	m.clearedprofiles = false
+	m.removedprofiles = nil
+}
+
 // Where appends a list predicates to the UserMutation builder.
 func (m *UserMutation) Where(ps ...predicate.User) {
 	m.predicates = append(m.predicates, ps...)
@@ -362,7 +933,10 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 5)
+	fields := make([]string, 0, 6)
+	if m.email != nil {
+		fields = append(fields, user.FieldEmail)
+	}
 	if m.username != nil {
 		fields = append(fields, user.FieldUsername)
 	}
@@ -386,6 +960,8 @@ func (m *UserMutation) Fields() []string {
 // schema.
 func (m *UserMutation) Field(name string) (ent.Value, bool) {
 	switch name {
+	case user.FieldEmail:
+		return m.Email()
 	case user.FieldUsername:
 		return m.Username()
 	case user.FieldPassword:
@@ -405,6 +981,8 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 // database failed.
 func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
 	switch name {
+	case user.FieldEmail:
+		return m.OldEmail(ctx)
 	case user.FieldUsername:
 		return m.OldUsername(ctx)
 	case user.FieldPassword:
@@ -424,6 +1002,13 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 // type.
 func (m *UserMutation) SetField(name string, value ent.Value) error {
 	switch name {
+	case user.FieldEmail:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEmail(v)
+		return nil
 	case user.FieldUsername:
 		v, ok := value.(string)
 		if !ok {
@@ -508,6 +1093,9 @@ func (m *UserMutation) ClearField(name string) error {
 // It returns an error if the field is not defined in the schema.
 func (m *UserMutation) ResetField(name string) error {
 	switch name {
+	case user.FieldEmail:
+		m.ResetEmail()
+		return nil
 	case user.FieldUsername:
 		m.ResetUsername()
 		return nil
@@ -529,48 +1117,590 @@ func (m *UserMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *UserMutation) AddedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.profiles != nil {
+		edges = append(edges, user.EdgeProfiles)
+	}
 	return edges
 }
 
 // AddedIDs returns all IDs (to other nodes) that were added for the given edge
 // name in this mutation.
 func (m *UserMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case user.EdgeProfiles:
+		ids := make([]ent.Value, 0, len(m.profiles))
+		for id := range m.profiles {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *UserMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.removedprofiles != nil {
+		edges = append(edges, user.EdgeProfiles)
+	}
 	return edges
 }
 
 // RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
 // the given name in this mutation.
 func (m *UserMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case user.EdgeProfiles:
+		ids := make([]ent.Value, 0, len(m.removedprofiles))
+		for id := range m.removedprofiles {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *UserMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.clearedprofiles {
+		edges = append(edges, user.EdgeProfiles)
+	}
 	return edges
 }
 
 // EdgeCleared returns a boolean which indicates if the edge with the given name
 // was cleared in this mutation.
 func (m *UserMutation) EdgeCleared(name string) bool {
+	switch name {
+	case user.EdgeProfiles:
+		return m.clearedprofiles
+	}
 	return false
 }
 
 // ClearEdge clears the value of the edge with the given name. It returns an error
 // if that edge is not defined in the schema.
 func (m *UserMutation) ClearEdge(name string) error {
+	switch name {
+	}
 	return fmt.Errorf("unknown User unique edge %s", name)
 }
 
 // ResetEdge resets all changes to the edge with the given name in this mutation.
 // It returns an error if the edge is not defined in the schema.
 func (m *UserMutation) ResetEdge(name string) error {
+	switch name {
+	case user.EdgeProfiles:
+		m.ResetProfiles()
+		return nil
+	}
 	return fmt.Errorf("unknown User edge %s", name)
+}
+
+// UserAppProfileMutation represents an operation that mutates the UserAppProfile nodes in the graph.
+type UserAppProfileMutation struct {
+	config
+	op                  Op
+	typ                 string
+	id                  *int
+	first_authorized_at *time.Time
+	last_active_at      *time.Time
+	clearedFields       map[string]struct{}
+	user                *int64
+	cleareduser         bool
+	app                 *int
+	clearedapp          bool
+	done                bool
+	oldValue            func(context.Context) (*UserAppProfile, error)
+	predicates          []predicate.UserAppProfile
+}
+
+var _ ent.Mutation = (*UserAppProfileMutation)(nil)
+
+// userappprofileOption allows management of the mutation configuration using functional options.
+type userappprofileOption func(*UserAppProfileMutation)
+
+// newUserAppProfileMutation creates new mutation for the UserAppProfile entity.
+func newUserAppProfileMutation(c config, op Op, opts ...userappprofileOption) *UserAppProfileMutation {
+	m := &UserAppProfileMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeUserAppProfile,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withUserAppProfileID sets the ID field of the mutation.
+func withUserAppProfileID(id int) userappprofileOption {
+	return func(m *UserAppProfileMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *UserAppProfile
+		)
+		m.oldValue = func(ctx context.Context) (*UserAppProfile, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().UserAppProfile.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withUserAppProfile sets the old UserAppProfile of the mutation.
+func withUserAppProfile(node *UserAppProfile) userappprofileOption {
+	return func(m *UserAppProfileMutation) {
+		m.oldValue = func(context.Context) (*UserAppProfile, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m UserAppProfileMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m UserAppProfileMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *UserAppProfileMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *UserAppProfileMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().UserAppProfile.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetFirstAuthorizedAt sets the "first_authorized_at" field.
+func (m *UserAppProfileMutation) SetFirstAuthorizedAt(t time.Time) {
+	m.first_authorized_at = &t
+}
+
+// FirstAuthorizedAt returns the value of the "first_authorized_at" field in the mutation.
+func (m *UserAppProfileMutation) FirstAuthorizedAt() (r time.Time, exists bool) {
+	v := m.first_authorized_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFirstAuthorizedAt returns the old "first_authorized_at" field's value of the UserAppProfile entity.
+// If the UserAppProfile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAppProfileMutation) OldFirstAuthorizedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFirstAuthorizedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFirstAuthorizedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFirstAuthorizedAt: %w", err)
+	}
+	return oldValue.FirstAuthorizedAt, nil
+}
+
+// ResetFirstAuthorizedAt resets all changes to the "first_authorized_at" field.
+func (m *UserAppProfileMutation) ResetFirstAuthorizedAt() {
+	m.first_authorized_at = nil
+}
+
+// SetLastActiveAt sets the "last_active_at" field.
+func (m *UserAppProfileMutation) SetLastActiveAt(t time.Time) {
+	m.last_active_at = &t
+}
+
+// LastActiveAt returns the value of the "last_active_at" field in the mutation.
+func (m *UserAppProfileMutation) LastActiveAt() (r time.Time, exists bool) {
+	v := m.last_active_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastActiveAt returns the old "last_active_at" field's value of the UserAppProfile entity.
+// If the UserAppProfile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserAppProfileMutation) OldLastActiveAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastActiveAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastActiveAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastActiveAt: %w", err)
+	}
+	return oldValue.LastActiveAt, nil
+}
+
+// ResetLastActiveAt resets all changes to the "last_active_at" field.
+func (m *UserAppProfileMutation) ResetLastActiveAt() {
+	m.last_active_at = nil
+}
+
+// SetUserID sets the "user" edge to the User entity by id.
+func (m *UserAppProfileMutation) SetUserID(id int64) {
+	m.user = &id
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (m *UserAppProfileMutation) ClearUser() {
+	m.cleareduser = true
+}
+
+// UserCleared reports if the "user" edge to the User entity was cleared.
+func (m *UserAppProfileMutation) UserCleared() bool {
+	return m.cleareduser
+}
+
+// UserID returns the "user" edge ID in the mutation.
+func (m *UserAppProfileMutation) UserID() (id int64, exists bool) {
+	if m.user != nil {
+		return *m.user, true
+	}
+	return
+}
+
+// UserIDs returns the "user" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// UserID instead. It exists only for internal usage by the builders.
+func (m *UserAppProfileMutation) UserIDs() (ids []int64) {
+	if id := m.user; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetUser resets all changes to the "user" edge.
+func (m *UserAppProfileMutation) ResetUser() {
+	m.user = nil
+	m.cleareduser = false
+}
+
+// SetAppID sets the "app" edge to the App entity by id.
+func (m *UserAppProfileMutation) SetAppID(id int) {
+	m.app = &id
+}
+
+// ClearApp clears the "app" edge to the App entity.
+func (m *UserAppProfileMutation) ClearApp() {
+	m.clearedapp = true
+}
+
+// AppCleared reports if the "app" edge to the App entity was cleared.
+func (m *UserAppProfileMutation) AppCleared() bool {
+	return m.clearedapp
+}
+
+// AppID returns the "app" edge ID in the mutation.
+func (m *UserAppProfileMutation) AppID() (id int, exists bool) {
+	if m.app != nil {
+		return *m.app, true
+	}
+	return
+}
+
+// AppIDs returns the "app" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// AppID instead. It exists only for internal usage by the builders.
+func (m *UserAppProfileMutation) AppIDs() (ids []int) {
+	if id := m.app; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetApp resets all changes to the "app" edge.
+func (m *UserAppProfileMutation) ResetApp() {
+	m.app = nil
+	m.clearedapp = false
+}
+
+// Where appends a list predicates to the UserAppProfileMutation builder.
+func (m *UserAppProfileMutation) Where(ps ...predicate.UserAppProfile) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the UserAppProfileMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *UserAppProfileMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.UserAppProfile, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *UserAppProfileMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *UserAppProfileMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (UserAppProfile).
+func (m *UserAppProfileMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *UserAppProfileMutation) Fields() []string {
+	fields := make([]string, 0, 2)
+	if m.first_authorized_at != nil {
+		fields = append(fields, userappprofile.FieldFirstAuthorizedAt)
+	}
+	if m.last_active_at != nil {
+		fields = append(fields, userappprofile.FieldLastActiveAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *UserAppProfileMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case userappprofile.FieldFirstAuthorizedAt:
+		return m.FirstAuthorizedAt()
+	case userappprofile.FieldLastActiveAt:
+		return m.LastActiveAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *UserAppProfileMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case userappprofile.FieldFirstAuthorizedAt:
+		return m.OldFirstAuthorizedAt(ctx)
+	case userappprofile.FieldLastActiveAt:
+		return m.OldLastActiveAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown UserAppProfile field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *UserAppProfileMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case userappprofile.FieldFirstAuthorizedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFirstAuthorizedAt(v)
+		return nil
+	case userappprofile.FieldLastActiveAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastActiveAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown UserAppProfile field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *UserAppProfileMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *UserAppProfileMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *UserAppProfileMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown UserAppProfile numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *UserAppProfileMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *UserAppProfileMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *UserAppProfileMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown UserAppProfile nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *UserAppProfileMutation) ResetField(name string) error {
+	switch name {
+	case userappprofile.FieldFirstAuthorizedAt:
+		m.ResetFirstAuthorizedAt()
+		return nil
+	case userappprofile.FieldLastActiveAt:
+		m.ResetLastActiveAt()
+		return nil
+	}
+	return fmt.Errorf("unknown UserAppProfile field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *UserAppProfileMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.user != nil {
+		edges = append(edges, userappprofile.EdgeUser)
+	}
+	if m.app != nil {
+		edges = append(edges, userappprofile.EdgeApp)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *UserAppProfileMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case userappprofile.EdgeUser:
+		if id := m.user; id != nil {
+			return []ent.Value{*id}
+		}
+	case userappprofile.EdgeApp:
+		if id := m.app; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *UserAppProfileMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *UserAppProfileMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *UserAppProfileMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.cleareduser {
+		edges = append(edges, userappprofile.EdgeUser)
+	}
+	if m.clearedapp {
+		edges = append(edges, userappprofile.EdgeApp)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *UserAppProfileMutation) EdgeCleared(name string) bool {
+	switch name {
+	case userappprofile.EdgeUser:
+		return m.cleareduser
+	case userappprofile.EdgeApp:
+		return m.clearedapp
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *UserAppProfileMutation) ClearEdge(name string) error {
+	switch name {
+	case userappprofile.EdgeUser:
+		m.ClearUser()
+		return nil
+	case userappprofile.EdgeApp:
+		m.ClearApp()
+		return nil
+	}
+	return fmt.Errorf("unknown UserAppProfile unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *UserAppProfileMutation) ResetEdge(name string) error {
+	switch name {
+	case userappprofile.EdgeUser:
+		m.ResetUser()
+		return nil
+	case userappprofile.EdgeApp:
+		m.ResetApp()
+		return nil
+	}
+	return fmt.Errorf("unknown UserAppProfile edge %s", name)
 }

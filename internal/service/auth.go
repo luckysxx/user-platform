@@ -20,6 +20,7 @@ var (
 	ErrInvalidCredentials = errors.New("用户名或密码错误")
 	ErrTokenGeneration    = errors.New("生成 Token 失败")
 	ErrAccountAbnormal    = errors.New("账号异常或已被封禁")
+	ErrAppNotFound        = errors.New("应用不存在")
 )
 
 type AuthService interface {
@@ -60,7 +61,17 @@ func (s *authService) Login(ctx context.Context, req *servicecontract.LoginComma
 		return nil, ErrInvalidCredentials
 	}
 
-	// 3. 签发双 Token (提取为一个内部方法，复用逻辑)
+	// 3. 首次登录某应用时自动建立授权关系（幂等）。
+	err = s.repo.EnsureAppAuthorized(ctx, user.ID, req.AppCode)
+	if err != nil {
+		if errors.Is(err, dberr.ErrNoRows) {
+			return nil, ErrAppNotFound
+		}
+		s.logger.Error("应用授权处理失败", zap.Error(err), zap.Int64("uid", user.ID), zap.String("app_code", req.AppCode))
+		return nil, err
+	}
+
+	// 4. 签发双 Token (提取为一个内部方法，复用逻辑)
 	return s.issueTokens(ctx, user.ID, user.Username)
 }
 

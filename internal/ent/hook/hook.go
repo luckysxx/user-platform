@@ -9,6 +9,18 @@ import (
 	"github.com/luckysxx/user-platform/internal/ent"
 )
 
+// The AppFunc type is an adapter to allow the use of ordinary
+// function as App mutator.
+type AppFunc func(context.Context, *ent.AppMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AppFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.AppMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AppMutation", m)
+}
+
 // The UserFunc type is an adapter to allow the use of ordinary
 // function as User mutator.
 type UserFunc func(context.Context, *ent.UserMutation) (ent.Value, error)
@@ -19,6 +31,18 @@ func (f UserFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error)
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserMutation", m)
+}
+
+// The UserAppProfileFunc type is an adapter to allow the use of ordinary
+// function as UserAppProfile mutator.
+type UserAppProfileFunc func(context.Context, *ent.UserAppProfileMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f UserAppProfileFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.UserAppProfileMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserAppProfileMutation", m)
 }
 
 // Condition is a hook condition function.

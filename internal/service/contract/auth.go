@@ -4,6 +4,7 @@ package contract
 type LoginCommand struct {
 	Username string
 	Password string
+	AppCode  string
 }
 
 // LoginResult is the service-layer output for login.

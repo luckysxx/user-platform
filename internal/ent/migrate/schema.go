@@ -8,9 +8,22 @@ import (
 )
 
 var (
+	// AppsColumns holds the columns for the "apps" table.
+	AppsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "app_code", Type: field.TypeString, Unique: true},
+		{Name: "app_name", Type: field.TypeString},
+	}
+	// AppsTable holds the schema information for the "apps" table.
+	AppsTable = &schema.Table{
+		Name:       "apps",
+		Columns:    AppsColumns,
+		PrimaryKey: []*schema.Column{AppsColumns[0]},
+	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "email", Type: field.TypeString, Unique: true, Size: 255},
 		{Name: "username", Type: field.TypeString, Unique: true, Size: 32},
 		{Name: "password", Type: field.TypeString},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "banned", "deleted"}, Default: "active"},
@@ -23,11 +36,43 @@ var (
 		Columns:    UsersColumns,
 		PrimaryKey: []*schema.Column{UsersColumns[0]},
 	}
+	// UserAppProfilesColumns holds the columns for the "user_app_profiles" table.
+	UserAppProfilesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "first_authorized_at", Type: field.TypeTime},
+		{Name: "last_active_at", Type: field.TypeTime},
+		{Name: "app_profiles", Type: field.TypeInt},
+		{Name: "user_profiles", Type: field.TypeInt64},
+	}
+	// UserAppProfilesTable holds the schema information for the "user_app_profiles" table.
+	UserAppProfilesTable = &schema.Table{
+		Name:       "user_app_profiles",
+		Columns:    UserAppProfilesColumns,
+		PrimaryKey: []*schema.Column{UserAppProfilesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "user_app_profiles_apps_profiles",
+				Columns:    []*schema.Column{UserAppProfilesColumns[3]},
+				RefColumns: []*schema.Column{AppsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "user_app_profiles_users_profiles",
+				Columns:    []*schema.Column{UserAppProfilesColumns[4]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		AppsTable,
 		UsersTable,
+		UserAppProfilesTable,
 	}
 )
 
 func init() {
+	UserAppProfilesTable.ForeignKeys[0].RefTable = AppsTable
+	UserAppProfilesTable.ForeignKeys[1].RefTable = UsersTable
 }
