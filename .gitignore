@@ -39,3 +39,23 @@ prometheus_data/
 
 # Vendor (keep if you do not vendor deps)
 vendor/
+
+# Frontend (view)
+view/node_modules/
+view/dist/
+view/dist-ssr/
+view/coverage/
+view/.eslintcache
+view/*.tsbuildinfo
+view/.env.local
+view/.env.development.local
+view/.env.test.local
+view/.env.production.local
+
+# Frontend package manager caches
+.pnpm-store/
+.npm/
+
+# Frontend tooling caches
+view/.vite/
+view/.cache/
