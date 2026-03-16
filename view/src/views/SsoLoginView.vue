@@ -2,10 +2,10 @@
 import { computed, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 
-import { registerBySso } from '@/api/sso'
+import { loginBySso } from '@/api/sso'
 
-const registerForm = reactive({
-  email: '',
+const loginForm = reactive({
+  appCode: '',
   username: '',
   password: '',
 })
@@ -33,35 +33,60 @@ function isSafeRedirectUri(uri: string): boolean {
 
 const ssoContext = computed(() => {
   const clientId = getSingleQueryValue(route.query.client_id).trim()
+  const appCode = getSingleQueryValue(route.query.app_code).trim() || clientId
   const redirectUri = getSingleQueryValue(route.query.redirect_uri).trim()
   const state = getSingleQueryValue(route.query.state).trim()
+  const effectiveAppCode = loginForm.appCode.trim() || appCode
 
   return {
     clientId,
+    appCode,
+    effectiveAppCode,
     redirectUri,
     state,
     canRedirect: redirectUri.length > 0 && isSafeRedirectUri(redirectUri),
+    canSubmit: effectiveAppCode.length > 0,
   }
 })
 
-function buildRedirectTarget(userId: number, username: string): string {
+function buildRedirectTarget(payload: {
+  userId: number
+  username: string
+  accessToken: string
+  refreshToken: string
+}): string {
   const callbackUrl = new URL(ssoContext.value.redirectUri)
-  callbackUrl.searchParams.set('result', 'registered')
-  callbackUrl.searchParams.set('user_id', String(userId))
-  callbackUrl.searchParams.set('username', username)
+  callbackUrl.searchParams.set('result', 'logged_in')
+  callbackUrl.searchParams.set('user_id', String(payload.userId))
+  callbackUrl.searchParams.set('username', payload.username)
 
   if (ssoContext.value.clientId) {
     callbackUrl.searchParams.set('client_id', ssoContext.value.clientId)
+  }
+  if (ssoContext.value.effectiveAppCode) {
+    callbackUrl.searchParams.set('app_code', ssoContext.value.effectiveAppCode)
   }
   if (ssoContext.value.state) {
     callbackUrl.searchParams.set('state', ssoContext.value.state)
   }
 
+  const hashParams = new URLSearchParams({
+    access_token: payload.accessToken,
+    refresh_token: payload.refreshToken,
+    token_type: 'Bearer',
+  })
+  callbackUrl.hash = hashParams.toString()
+
   return callbackUrl.toString()
 }
 
-const handleRegister = async () => {
+const handleLogin = async () => {
   if (isSubmitting.value) {
+    return
+  }
+
+  if (!ssoContext.value.canSubmit) {
+    errorMessage.value = '缺少 app_code 或 client_id，无法完成登录'
     return
   }
 
@@ -70,21 +95,26 @@ const handleRegister = async () => {
   isSubmitting.value = true
 
   try {
-    const result = await registerBySso({
-      email: registerForm.email,
-      username: registerForm.username,
-      password: registerForm.password,
+    const result = await loginBySso({
+      username: loginForm.username,
+      password: loginForm.password,
+      app_code: ssoContext.value.effectiveAppCode,
     })
 
-    successMessage.value = '注册成功'
+    successMessage.value = '登录成功'
 
     if (ssoContext.value.canRedirect) {
-      const target = buildRedirectTarget(result.user_id, result.username)
+      const target = buildRedirectTarget({
+        userId: result.user_id,
+        username: result.username,
+        accessToken: result.access_token,
+        refreshToken: result.refresh_token,
+      })
       window.location.replace(target)
       return
     }
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '注册失败，请稍后重试'
+    errorMessage.value = error instanceof Error ? error.message : '登录失败，请稍后重试'
   } finally {
     isSubmitting.value = false
   }
@@ -120,36 +150,41 @@ const handleRegister = async () => {
       </div>
 
       <section class="auth-card">
-        <h1>欢迎注册 luckys</h1>
+        <h1>欢迎登录 luckys</h1>
         <p class="sub-title">统一身份账号中心</p>
         <p v-if="ssoContext.clientId" class="sso-app">接入应用：{{ ssoContext.clientId }}</p>
 
-        <form class="auth-form" @submit.prevent="handleRegister">
+        <form class="auth-form" @submit.prevent="handleLogin">
           <label class="form-item">
-            <input v-model="registerForm.email" type="email" placeholder="邮箱" required />
+            <input
+              v-model="loginForm.appCode"
+              type="text"
+              placeholder="应用编码（app_code）"
+              :readonly="Boolean(ssoContext.appCode)"
+            />
           </label>
 
           <label class="form-item">
-            <input v-model="registerForm.username" type="text" placeholder="用户名" required />
+            <input v-model="loginForm.username" type="text" placeholder="用户名" required />
           </label>
 
           <label class="form-item">
-            <input v-model="registerForm.password" type="password" placeholder="密码" required />
+            <input v-model="loginForm.password" type="password" placeholder="密码" required />
           </label>
 
           <p v-if="errorMessage" class="form-message error">{{ errorMessage }}</p>
           <p v-if="successMessage" class="form-message success">
             {{ successMessage }}
-            <span v-if="!ssoContext.canRedirect">，你可以继续登录</span>
+            <span v-if="!ssoContext.canRedirect">，你可以返回应用继续操作</span>
           </p>
 
-          <button type="submit" class="primary-btn" :disabled="isSubmitting">
-            {{ isSubmitting ? '注册中...' : '立即注册' }}
+          <button type="submit" class="primary-btn" :disabled="isSubmitting || !ssoContext.canSubmit">
+            {{ isSubmitting ? '登录中...' : '立即登录' }}
           </button>
 
           <p class="switch-auth">
-            已有账号？
-            <RouterLink class="switch-link" :to="{ name: 'sso-login', query: route.query }">去登录</RouterLink>
+            没有账号？
+            <RouterLink class="switch-link" :to="{ name: 'sso-register', query: route.query }">去注册</RouterLink>
           </p>
         </form>
       </section>
@@ -171,11 +206,8 @@ const handleRegister = async () => {
 .register-page {
   --bg-top: #b7d8ea;
   --bg-bottom: #d9e6ef;
-  --input-bg: rgba(245, 249, 252, 0.72);
   --input-line: rgba(173, 193, 209, 0.72);
   --text: #111827;
-  --muted: #5f6f84;
-  --brand: #1492ec;
 
   min-height: 100vh;
   padding: 0;
@@ -450,7 +482,7 @@ const handleRegister = async () => {
 .auth-card h1 {
   margin: 0;
   text-align: center;
-  font-size: 2.0rem;
+  font-size: 2rem;
   font-weight: 700;
 }
 
@@ -482,7 +514,6 @@ const handleRegister = async () => {
 }
 
 .auth-form input[type='text'],
-.auth-form input[type='email'],
 .auth-form input[type='password'] {
   width: 100%;
   height: 42px;
@@ -503,6 +534,11 @@ const handleRegister = async () => {
   border-color: rgba(20, 146, 236, 0.65);
   background: rgba(250, 253, 255, 0.92);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.auth-form input:read-only {
+  background: linear-gradient(180deg, rgba(242, 248, 253, 0.9), rgba(232, 241, 249, 0.72));
+  color: rgba(38, 54, 74, 0.78);
 }
 
 .primary-btn {
