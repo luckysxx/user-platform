@@ -1,6 +1,6 @@
 .PHONY: init-networks local-infra-up local-infra-down local-run local-run-http local-run-grpc local-test proto-gen docker-up docker-down docker-logs ps health
 
-NETWORK_EXTERNAL = gopher-net
+NETWORK_EXTERNAL = go-net
 NETWORK_INTERNAL = platform-internal
 COMPOSE_FILES = -f docker-compose-infra.yaml -f docker-compose-service.yaml
 

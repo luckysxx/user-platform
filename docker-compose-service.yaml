@@ -25,7 +25,7 @@ services:
       retries: 5
       start_period: 15s
     networks:
-      - gopher-net
+      - go-net
       - platform-internal
     restart: unless-stopped
 
@@ -49,13 +49,13 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - gopher-net
+      - go-net
       - platform-internal
     restart: unless-stopped
 
 networks:
-  gopher-net:
-    name: gopher-net
+  go-net:
+    name: go-net
     external: true
   platform-internal:
     name: platform-internal
