@@ -1,19 +1,11 @@
-.PHONY: init-networks local-infra-up local-infra-down local-run local-run-http local-run-grpc local-test proto-gen docker-up docker-down docker-logs ps health fe-install fe-dev fe-build fe-lint fe-type-check fe-preview
+.PHONY: init-networks local-run local-run-http local-run-grpc local-test proto-gen docker-up docker-down docker-logs ps health fe-install fe-dev fe-build fe-lint fe-type-check fe-preview
 
 NETWORK_EXTERNAL = go-net
-NETWORK_INTERNAL = platform-internal
-COMPOSE_FILES = -f docker-compose-infra.yaml -f docker-compose-service.yaml
+COMPOSE_FILES = -f docker-compose-service.yaml
 FRONTEND_DIR = view
 
 init-networks:
 	@docker network inspect $(NETWORK_EXTERNAL) >/dev/null 2>&1 || docker network create $(NETWORK_EXTERNAL)
-	@docker network inspect $(NETWORK_INTERNAL) >/dev/null 2>&1 || docker network create $(NETWORK_INTERNAL)
-
-local-infra-up: init-networks
-	docker compose -f docker-compose-infra.yaml up -d postgres redis
-
-local-infra-down:
-	docker compose -f docker-compose-infra.yaml stop postgres redis
 
 local-run:
 	go run ./cmd/http
@@ -37,14 +29,14 @@ docker-down:
 	docker compose $(COMPOSE_FILES) down
 
 docker-logs:
-	docker compose $(COMPOSE_FILES) logs -f user-http user-grpc postgres redis
+	docker compose $(COMPOSE_FILES) logs -f user-http user-grpc
 
 ps:
 	docker compose $(COMPOSE_FILES) ps
 
 health:
 	docker compose $(COMPOSE_FILES) ps --format "table {{.Name}}\t{{.State}}\t{{.Health}}"
-	docker compose $(COMPOSE_FILES) logs --tail=40 user-http user-grpc postgres redis
+	docker compose $(COMPOSE_FILES) logs --tail=40 user-http user-grpc
 
 fe-install:
 	pnpm --dir $(FRONTEND_DIR) install

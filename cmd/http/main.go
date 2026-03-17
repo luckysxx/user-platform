@@ -5,6 +5,7 @@ import (
 
 	"github.com/luckysxx/user-platform/internal/auth"
 	"github.com/luckysxx/user-platform/internal/cache"
+	"github.com/luckysxx/user-platform/internal/event"
 	"github.com/luckysxx/user-platform/internal/platform/config"
 	"github.com/luckysxx/user-platform/internal/platform/database"
 	"github.com/luckysxx/user-platform/internal/platform/logger"
@@ -29,9 +30,11 @@ func main() {
 	redisClient := cache.InitRedis(cfg.Redis, log)
 	defer redisClient.Close()
 
+	publisher := event.NewKafkaPublisher(cfg.Kafka.Brokers, log)
+	defer publisher.Close()
 	userRepo := repository.NewUserRepository(entClient)
 	jwtManager := auth.NewJWTManager(cfg.JWT.Secret)
-	userSvc := service.NewUserService(userRepo, log)
+	userSvc := service.NewUserService(userRepo, publisher, log)
 	authSvc := service.NewAuthService(userRepo, redisClient, jwtManager, log)
 	userHandler := handler.NewUserHandler(userSvc, authSvc, log)
 

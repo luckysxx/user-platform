@@ -13,10 +13,16 @@ type Config struct {
 	Database DatabaseConfig
 	Redis    RedisConfig
 	JWT      JWTConfig
+	Kafka    KafkaConfig
 }
 
 type ServerConfig struct {
 	Port string
+}
+
+type KafkaConfig struct {
+	Brokers             string
+	TopicUserRegistered string
 }
 
 type DatabaseConfig struct {
@@ -40,11 +46,8 @@ func LoadConfig() *Config {
 	// 尝试加载 .env 文件（如果存在）
 	_ = godotenv.Load()
 
-	// 数据库配置：使用完整的连接字符串
-	// 格式：postgres://user:password@host:port/dbname?sslmode=disable
-	// 支持其他数据库：mysql://user:password@host:port/dbname
 	dbSource := getEnv("DB_SOURCE",
-		"postgres://luckys:123456@localhost:5432/gopher_paste?sslmode=disable")
+		"postgres://luckys:123456@localhost:5432/user_platform?sslmode=disable")
 	appEnv := getEnv("APP_ENV", "development")
 	autoMigrateDefault := appEnv != "production"
 
@@ -64,7 +67,11 @@ func LoadConfig() *Config {
 			DB:       getEnvAsInt("REDIS_DB", 0),
 		},
 		JWT: JWTConfig{
-			Secret: getEnv("JWT_SECRET", "gopherpaste_secret_key"),
+			Secret: getEnv("JWT_SECRET", "user_platform_secret_key"),
+		},
+		Kafka: KafkaConfig{
+			Brokers:             getEnv("KAFKA_BROKERS", "localhost:9092"),
+			TopicUserRegistered: getEnv("KAFKA_TOPIC_USER_REGISTERED", "user_registered"),
 		},
 	}
 }

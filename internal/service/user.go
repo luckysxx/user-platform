@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"github.com/luckysxx/user-platform/internal/event"
 	"github.com/luckysxx/user-platform/internal/repository"
 	servicecontract "github.com/luckysxx/user-platform/internal/service/contract"
 
@@ -15,12 +16,13 @@ type UserService interface {
 }
 
 type userService struct {
-	repo   repository.UserRepository
-	logger *zap.Logger
+	repo      repository.UserRepository
+	Publisher event.Publisher
+	logger    *zap.Logger
 }
 
-func NewUserService(repo repository.UserRepository, logger *zap.Logger) UserService {
-	return &userService{repo: repo, logger: logger}
+func NewUserService(repo repository.UserRepository, publisher event.Publisher, logger *zap.Logger) UserService {
+	return &userService{repo: repo, Publisher: publisher, logger: logger}
 }
 
 func (s *userService) Register(ctx context.Context, req *servicecontract.RegisterCommand) (*servicecontract.RegisterResult, error) {
@@ -43,6 +45,14 @@ func (s *userService) Register(ctx context.Context, req *servicecontract.Registe
 		UserID:   user.ID,
 		Username: user.Username,
 	}
+
+	// 发送 Kafka 消息
+	go func() {
+		err := s.Publisher.PublishUserRegistered(ctx, user.ID, user.Email)
+		if err != nil {
+			s.logger.Error("发送用户注册事件失败", zap.Error(err))
+		}
+	}()
 
 	return resp, nil
 }
