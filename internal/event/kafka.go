@@ -6,13 +6,22 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/luckysxx/user-platform/pkg/trace"
 	"github.com/segmentio/kafka-go"
 	"go.uber.org/zap"
 )
 
+type UserRegisteredEvent struct {
+	EventType string `json:"event_type"`
+	UserID    int64  `json:"user_id"`
+	Email     string `json:"email"`
+	Username  string `json:"username"`
+	Timestamp int64  `json:"timestamp"`
+}
+
 // Publisher 接口：定义了业务层能调用哪些发送动作
 type Publisher interface {
-	PublishUserRegistered(ctx context.Context, userID int64, email string) error
+	PublishUserRegistered(ctx context.Context, userID int64, email string, username string) error
 	Close() error
 }
 
@@ -26,19 +35,21 @@ func NewKafkaPublisher(addr string, logger *zap.Logger) *publisher {
 	w := &kafka.Writer{
 		Addr: kafka.TCP(addr),
 		// 这里不写死 Topic，让后续发送不同类型事件时更灵活
-		Balancer: &kafka.LeastBytes{},
+		Balancer:               &kafka.LeastBytes{},
+		AllowAutoTopicCreation: true, // 允许生产者在发现 Topic 不存在时，自动向 Broker 申请创建
 	}
 	return &publisher{writer: w, logger: logger}
 }
 
 // PublishUserRegistered 具体发送用户注册事件的方法
-func (k *publisher) PublishUserRegistered(ctx context.Context, userID int64, email string) error {
+func (k *publisher) PublishUserRegistered(ctx context.Context, userID int64, email string, username string) error {
 	// 1. 构造标准的消息体 JSON
-	msg := map[string]interface{}{
-		"event_type": "user_registered",
-		"user_id":    userID,
-		"email":      email,
-		"timestamp":  time.Now().Unix(),
+	msg := UserRegisteredEvent{
+		EventType: "user_registered",
+		UserID:    userID,
+		Email:     email,
+		Username:  username,
+		Timestamp: time.Now().Unix(),
 	}
 
 	msgBytes, err := json.Marshal(msg)
@@ -46,21 +57,26 @@ func (k *publisher) PublishUserRegistered(ctx context.Context, userID int64, ema
 		return err
 	}
 
-	// 2. 发送到 user_events 这个频道
+	traceID := trace.FromContext(ctx)
+
+	// 2. 发送到 user.registered 频道
 	err = k.writer.WriteMessages(ctx,
 		kafka.Message{
-			Topic: "user_events",
-			Key:   []byte(email), // 用邮箱做 Key，确保同一个用户的消息在同一个分区排队
+			Topic: "user.registered",
+			Key:   []byte(email),
 			Value: msgBytes,
+			Headers: []kafka.Header{
+				{Key: trace.HeaderTraceID, Value: []byte(traceID)},
+			},
 		},
 	)
 
 	if err != nil {
-		k.logger.Error("[Kafka] 投递新用户注册消息失败", zap.Error(err))
+		k.logger.Error("[Kafka] 投递新用户注册消息失败", zap.Error(err), zap.String("trace_id", traceID), zap.String("email", email), zap.String("username", username))
 		return err
 	}
 
-	k.logger.Info("[Kafka] 成功投递新用户注册消息", zap.String("email", email))
+	k.logger.Info("[Kafka] 成功投递新用户注册消息", zap.String("trace_id", traceID), zap.String("email", email), zap.String("username", username))
 	return nil
 }
 

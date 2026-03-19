@@ -36,7 +36,6 @@ func (s *UserServer) Register(ctx context.Context, req *pb.RegisterRequest) (*pb
 		Password: req.GetPassword(),
 	})
 	if err != nil {
-		s.logger.Error("grpc register failed", zap.Error(err))
 		return nil, grpcerrs.ToGRPCError(err)
 	}
 

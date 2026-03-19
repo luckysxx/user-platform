@@ -52,8 +52,7 @@ func (s *authService) Login(ctx context.Context, req *servicecontract.LoginComma
 		if dberr.IsNotFoundError(err) {
 			return nil, ErrInvalidCredentials
 		}
-		s.logger.Error("查询用户失败", zap.Error(err))
-		return nil, err
+		return nil, fmt.Errorf("查询用户失败: %w", err)
 	}
 
 	// 2. 比较密码
@@ -67,8 +66,7 @@ func (s *authService) Login(ctx context.Context, req *servicecontract.LoginComma
 		if errors.Is(err, dberr.ErrNoRows) {
 			return nil, ErrAppNotFound
 		}
-		s.logger.Error("应用授权处理失败", zap.Error(err), zap.Int64("uid", user.ID), zap.String("app_code", req.AppCode))
-		return nil, err
+		return nil, fmt.Errorf("应用授权处理失败 (uid:%d, app_code:%s): %w", user.ID, req.AppCode, err)
 	}
 
 	// 4. 签发双 Token (提取为一个内部方法，复用逻辑)
@@ -78,9 +76,8 @@ func (s *authService) Login(ctx context.Context, req *servicecontract.LoginComma
 func (s *authService) VerifyToken(ctx context.Context, req *servicecontract.VerifyTokenCommand) (*servicecontract.VerifyTokenResult, error) {
 	claims, err := s.jwtManager.VerifyToken(req.Token)
 	if err != nil {
-		// 验签失败属于常规情况（如过期），使用 Debug 或 Info 级别即可，Warn 可能造成日志报警轰炸
-		s.logger.Debug("Token 验证失败", zap.Error(err))
-		return nil, err
+		// 验签失败属于常规情况（如过期），包装返回由最外层决定记录级别即可
+		return nil, fmt.Errorf("Token验证失败: %w", err)
 	}
 	return &servicecontract.VerifyTokenResult{
 		UserID:   claims.UserID,
@@ -96,8 +93,7 @@ func (s *authService) RefreshToken(ctx context.Context, req *servicecontract.Ref
 		if errors.Is(err, redis.Nil) {
 			return nil, auth.ErrInvalidOrExpiredToken
 		}
-		s.logger.Error("查询 Refresh Token 失败", zap.Error(err))
-		return nil, err
+		return nil, fmt.Errorf("查询Refresh Token失败: %w", err)
 	}
 
 	// 2. 轮换自毁，从 Redis 删掉这个用过的 RT
@@ -106,8 +102,7 @@ func (s *authService) RefreshToken(ctx context.Context, req *servicecontract.Ref
 	// 3. 去数据库查一下该用户的最新状态（获取最新的 username，并拦截被封禁的用户）
 	user, err := s.repo.GetByID(ctx, userID)
 	if err != nil {
-		s.logger.Warn("试图刷新Token，但用户不存在", zap.Int64("uid", userID))
-		return nil, ErrAccountAbnormal
+		return nil, fmt.Errorf("试图刷新Token但用户(uid:%d)不存在: %w", userID, ErrAccountAbnormal)
 	}
 
 	// 4. 重新签发一套全新的 Access Token 和 Refresh Token
@@ -128,8 +123,7 @@ func (s *authService) issueTokens(ctx context.Context, userID int64, username st
 	// 1. 生成 Access Token
 	accessToken, err := s.jwtManager.GenerateAccessToken(userID, username)
 	if err != nil {
-		s.logger.Error("生成 Access Token 失败", zap.Error(err))
-		return nil, ErrTokenGeneration
+		return nil, fmt.Errorf("生成 Access Token 失败 (uid:%d, cause:%v): %w", userID, err, ErrTokenGeneration)
 	}
 
 	// 2. 生成纯 UUID 的 Refresh Token
@@ -138,8 +132,7 @@ func (s *authService) issueTokens(ctx context.Context, userID int64, username st
 
 	// 3. 存储到 Redis
 	if err := s.redisCli.Set(ctx, redisKey, userID, auth.RefreshTokenDuration).Err(); err != nil {
-		s.logger.Error("存储 Refresh Token 失败", zap.Error(err))
-		return nil, ErrTokenGeneration
+		return nil, fmt.Errorf("存储 Refresh Token 失败 (uid:%d, cause:%v): %w", userID, err, ErrTokenGeneration)
 	}
 
 	return &servicecontract.LoginResult{

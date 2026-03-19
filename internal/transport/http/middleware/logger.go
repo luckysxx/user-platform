@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/luckysxx/user-platform/pkg/trace"
 	"go.uber.org/zap"
 )
 
@@ -25,34 +26,36 @@ func GinLogger(log *zap.Logger) gin.HandlerFunc {
 
 		c.Next() // 执行后续的逻辑
 
+		// Docker 健康检查很频繁（每 10 秒一次），为了防止日志刷屏，我们可以直接过滤掉对 /health 的日志记录
+		if path == "/health" {
+			return
+		}
+
 		// 请求结束，记录日志
 		cost := time.Since(start)
 		status := c.Writer.Status()
+		traceID := trace.FromContext(c.Request.Context())
+
+		fields := []zap.Field{
+			zap.String("trace_id", traceID),
+			zap.Int("status", status),
+			zap.String("method", c.Request.Method),
+			zap.String("path", path),
+			zap.String("query", query),
+			zap.String("ip", c.ClientIP()),
+			zap.Duration("cost", cost),
+		}
 
 		if len(c.Errors) > 0 {
-			// 如果有错误，记录为 Error 级别，包含完整信息
-			for _, e := range c.Errors {
-				log.Error("请求错误",
-					zap.Int("status", status),
-					zap.String("method", c.Request.Method),
-					zap.String("path", path),
-					zap.String("query", query),
-					zap.String("ip", c.ClientIP()),
-					zap.Duration("cost", cost),
-					zap.Error(e.Err),
-					zap.Int("error_type", int(e.Type)),
-				)
-			}
+			fields = append(fields, zap.String("errors", c.Errors.String()))
+		}
+
+		if status >= 500 {
+			log.Error("服务器内部错误", fields...)
+		} else if status >= 400 {
+			log.Warn("请求异常", fields...)
 		} else {
-			// 正常请求记录 Info
-			log.Info("请求",
-				zap.Int("status", status),
-				zap.String("method", c.Request.Method),
-				zap.String("path", path),
-				zap.String("query", query),
-				zap.String("ip", c.ClientIP()),
-				zap.Duration("cost", cost),
-			)
+			log.Info("请求", fields...)
 		}
 	}
 }

@@ -35,8 +35,6 @@ func (s *AuthServer) Login(ctx context.Context, req *pb.LoginRequest) (*pb.Login
 		AppCode:  req.GetAppCode(),
 	})
 	if err != nil {
-		s.logger.Error("grpc login failed", zap.Error(err))
-
 		switch {
 		case errors.Is(err, service.ErrInvalidCredentials):
 			return nil, status.Error(codes.Unauthenticated, "用户名或密码错误")
@@ -64,7 +62,6 @@ func (s *AuthServer) RefreshToken(ctx context.Context, req *pb.RefreshTokenReque
 
 	resp, err := s.avc.RefreshToken(ctx, &servicecontract.RefreshTokenCommand{Token: req.GetToken()})
 	if err != nil {
-		s.logger.Error("grpc refresh token failed", zap.Error(err))
 		return nil, grpcerrs.ToGRPCError(err)
 	}
 

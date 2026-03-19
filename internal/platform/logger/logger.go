@@ -24,32 +24,39 @@ func NewLogger(serviceName string) *zap.Logger {
 
 	// 开发环境使用Debug级别，生产环境使用Info级别
 	level := zapcore.InfoLevel
-	env := os.Getenv("ENV")
+	env := os.Getenv("APP_ENV")
+	if env == "" {
+		env = os.Getenv("ENV")
+	}
+
 	if env == "dev" || env == "development" {
 		level = zapcore.DebugLevel
+		// 开发环境加点颜色高亮，方便人眼阅读
+		config.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	}
+
+	// 选择编码器：容器环境用 JSON，本地用 Console
+	isContainer := env == "production" || env == "prod" || env == "container"
+	var encoder zapcore.Encoder
+	if isContainer {
+		encoder = zapcore.NewJSONEncoder(config)
+	} else {
+		encoder = zapcore.NewConsoleEncoder(config)
 	}
 
 	// 判断日志输出方式
-	// 1. 容器环境 (ENV=production/prod/container)：只输出到 stdout
-	// 2. 本地开发环境：同时输出到 stdout 和文件
-	// 3. 可通过 LOG_FILE 环境变量自定义文件路径
 	var writeSyncer zapcore.WriteSyncer
-
-	isContainer := env == "production" || env == "prod" || env == "container"
 	logFile := os.Getenv("LOG_FILE")
 
 	if isContainer && logFile == "" {
-		// 容器环境且未指定文件：只输出到 stdout
 		writeSyncer = zapcore.AddSync(os.Stdout)
 	} else {
-		// 本地开发环境或指定了 LOG_FILE：同时输出到 stdout 和文件
 		if logFile == "" {
-			logFile = "app.log" // 本地开发默认文件
+			logFile = "app.log"
 		}
 
 		file, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err != nil {
-			// 文件打开失败，降级到只输出 stdout
 			writeSyncer = zapcore.AddSync(os.Stdout)
 		} else {
 			writeSyncer = zapcore.NewMultiWriteSyncer(
@@ -60,16 +67,16 @@ func NewLogger(serviceName string) *zap.Logger {
 	}
 
 	core := zapcore.NewCore(
-		zapcore.NewConsoleEncoder(config),
+		encoder,
 		writeSyncer,
 		level,
 	)
 
-	// AddCaller添加调用者信息，AddStacktrace在Error级别添加堆栈
+	// AddCaller添加调用者信息。去掉普通 Error 的 Stacktrace 避免输出一堆 github.com 的堆栈信息
 	logger := zap.New(core,
 		zap.AddCaller(),
 		zap.AddCallerSkip(0),
-		zap.AddStacktrace(zapcore.ErrorLevel),
+		zap.AddStacktrace(zapcore.DPanicLevel), // 仅在 Panic 时打印堆栈
 	)
 
 	logger = logger.With(zap.String("service", serviceName))

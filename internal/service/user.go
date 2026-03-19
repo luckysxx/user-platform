@@ -2,10 +2,12 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/luckysxx/user-platform/internal/event"
 	"github.com/luckysxx/user-platform/internal/repository"
 	servicecontract "github.com/luckysxx/user-platform/internal/service/contract"
+	"github.com/luckysxx/user-platform/pkg/trace"
 
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
@@ -29,15 +31,13 @@ func (s *userService) Register(ctx context.Context, req *servicecontract.Registe
 	// 加密密码
 	hashedPwd, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		s.logger.Error("密码加密失败", zap.Error(err))
-		return nil, err
+		return nil, fmt.Errorf("密码加密失败: %w", err)
 	}
 
 	// 调用数据库创建用户
 	user, err := s.repo.Create(ctx, req.Email, req.Username, string(hashedPwd))
 	if err != nil {
-		s.logger.Error("创建用户失败", zap.Error(err))
-		return nil, err
+		return nil, fmt.Errorf("创建用户失败: %w", err)
 	}
 
 	resp := &servicecontract.RegisterResult{
@@ -46,11 +46,17 @@ func (s *userService) Register(ctx context.Context, req *servicecontract.Registe
 		Username: user.Username,
 	}
 
+	// 从当前请求提取 TraceID 以传给后台任务
+	traceID := trace.FromContext(ctx)
+
 	// 发送 Kafka 消息
 	go func() {
-		err := s.Publisher.PublishUserRegistered(ctx, user.ID, user.Email)
+		// ⚠️ 极其经典的坑：不能在新的协程中复用来自于前台（比如 HTTP 请求）的 ctx
+		// 解决办法：传入一个独立的上下文，但需要手动把 traceID 带过去
+		bgCtx := trace.IntoContext(context.Background(), traceID)
+		err := s.Publisher.PublishUserRegistered(bgCtx, user.ID, user.Email, user.Username)
 		if err != nil {
-			s.logger.Error("发送用户注册事件失败", zap.Error(err))
+			s.logger.Error("跨服务发送用户注册事件失败", zap.Error(err))
 		}
 	}()
 

@@ -9,8 +9,16 @@ import (
 )
 
 func SetupRouter(r *gin.Engine, userHandler *handler.UserHandler, log *zap.Logger) {
+	r.Use(middleware.TraceMiddleware())
 	r.Use(middleware.GinLogger(log))
 	r.Use(middleware.GinRecovery(log, true))
+
+	// 用于 Docker 容器的健康检查
+	healthHandler := func(c *gin.Context) {
+		c.String(200, "ok")
+	}
+	r.GET("/health", healthHandler)
+	r.HEAD("/health", healthHandler)
 
 	v1 := r.Group("/api/v1")
 	{

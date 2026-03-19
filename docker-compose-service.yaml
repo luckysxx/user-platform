@@ -12,9 +12,9 @@ services:
       - DB_SOURCE=postgres://luckys:123456@global-postgres:5432/user_platform?sslmode=disable
       - REDIS_ADDR=global-redis:6379
       - JWT_SECRET=user_platform_secret_key
-      - KAFKA_ADDR=global-kafka:9092
+      - KAFKA_BROKERS=global-kafka:9092
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8081/api/v1/users/login"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8081/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -36,7 +36,7 @@ services:
       - DB_SOURCE=postgres://luckys:123456@global-postgres:5432/user_platform?sslmode=disable
       - REDIS_ADDR=global-redis:6379
       - JWT_SECRET=user_platform_secret_key
-      - KAFKA_ADDR=global-kafka:9092
+      - KAFKA_BROKERS=global-kafka:9092
     networks:
       - go-net
     restart: unless-stopped
