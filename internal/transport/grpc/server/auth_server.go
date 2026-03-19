@@ -40,6 +40,8 @@ func (s *AuthServer) Login(ctx context.Context, req *pb.LoginRequest) (*pb.Login
 			return nil, status.Error(codes.Unauthenticated, "用户名或密码错误")
 		case errors.Is(err, service.ErrAppNotFound):
 			return nil, status.Error(codes.InvalidArgument, "app_code does not exist")
+		case errors.Is(err, service.ErrTooManyLoginAttempts):
+			return nil, status.Error(codes.ResourceExhausted, "尝试登录次数过多，请15分钟后再试")
 		case errors.Is(err, service.ErrTokenGeneration):
 			return nil, status.Error(codes.Internal, "internal error")
 		default:

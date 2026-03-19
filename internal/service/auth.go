@@ -10,6 +10,7 @@ import (
 	"github.com/luckysxx/user-platform/internal/dberr"
 	"github.com/luckysxx/user-platform/internal/repository"
 	servicecontract "github.com/luckysxx/user-platform/internal/service/contract"
+	"github.com/luckysxx/user-platform/pkg/ratelimiter"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
@@ -17,10 +18,11 @@ import (
 
 // 将错误定义移回所属的域
 var (
-	ErrInvalidCredentials = errors.New("用户名或密码错误")
-	ErrTokenGeneration    = errors.New("生成 Token 失败")
-	ErrAccountAbnormal    = errors.New("账号异常或已被封禁")
-	ErrAppNotFound        = errors.New("应用不存在")
+	ErrInvalidCredentials   = errors.New("用户名或密码错误")
+	ErrTokenGeneration      = errors.New("生成 Token 失败")
+	ErrAccountAbnormal      = errors.New("账号异常或已被封禁")
+	ErrAppNotFound          = errors.New("应用不存在")
+	ErrTooManyLoginAttempts = errors.New("尝试登录次数过多，请15分钟后再试")
 )
 
 type AuthService interface {
@@ -33,19 +35,38 @@ type authService struct {
 	repo       repository.UserRepository
 	redisCli   *redis.Client
 	jwtManager *auth.JWTManager
+	limiter    ratelimiter.Limiter
 	logger     *zap.Logger
 }
 
-func NewAuthService(repo repository.UserRepository, redisCli *redis.Client, jwtManager *auth.JWTManager, logger *zap.Logger) AuthService {
+func NewAuthService(
+	repo repository.UserRepository,
+	redisCli *redis.Client,
+	jwtManager *auth.JWTManager,
+	limiter ratelimiter.Limiter,
+	logger *zap.Logger,
+) AuthService {
 	return &authService{
 		repo:       repo,
 		redisCli:   redisCli,
 		jwtManager: jwtManager,
+		limiter:    limiter,
 		logger:     logger,
 	}
 }
 
 func (s *authService) Login(ctx context.Context, req *servicecontract.LoginCommand) (*servicecontract.LoginResult, error) {
+	// 限制同一个 Username 的高频尝试
+	limiterKey := fmt.Sprintf("rl:login:user:%s", req.Username)
+	if err := s.limiter.Allow(ctx, limiterKey, 5, 15*60*1000000000); err != nil { // 15分钟(纳秒)
+		if errors.Is(err, ratelimiter.ErrRateLimitExceeded) {
+			s.logger.Warn("防止暴力破解, 账号登录被限流", zap.String("username", req.Username))
+			return nil, ErrTooManyLoginAttempts
+		}
+		// 理论上 Fail-Open 机制不会走到这里，但为了严谨
+		return nil, fmt.Errorf("限流器验证失败: %w", err)
+	}
+
 	// 1. 获取用户
 	user, err := s.repo.GetByUsername(ctx, req.Username)
 	if err != nil {

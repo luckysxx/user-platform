@@ -95,6 +95,10 @@ func (h *UserHandler) Login(c *gin.Context) {
 			response.Error(c, pkgerrs.NewParamErr("应用不存在", err))
 			return
 		}
+		if errors.Is(err, service.ErrTooManyLoginAttempts) {
+			response.Error(c, pkgerrs.NewParamErr("尝试登录次数过多，请15分钟后再试", err))
+			return
+		}
 
 		// 其他错误统一转换
 		response.Error(c, httperrs.ConvertToCustomError(err))

@@ -19,6 +19,7 @@ import (
 	usergrpcserver "github.com/luckysxx/user-platform/internal/transport/grpc/server"
 	auth_pb "github.com/luckysxx/user-platform/proto/auth"
 	user_pb "github.com/luckysxx/user-platform/proto/user"
+	"github.com/luckysxx/user-platform/pkg/ratelimiter"
 
 	"go.uber.org/zap"
 )
@@ -49,7 +50,8 @@ func main() {
 	defer publisher.Close()
 	userSvc := service.NewUserService(userRepo, publisher, logg)
 	jwtManager := auth.NewJWTManager(cfg.JWT.Secret)
-	authSvc := service.NewAuthService(userRepo, redisClient, jwtManager, logg)
+	rateLim := ratelimiter.NewRedisLimiter(redisClient, logg)
+	authSvc := service.NewAuthService(userRepo, redisClient, jwtManager, rateLim, logg)
 
 	s := grpc.NewServer()
 	user_pb.RegisterUserServiceServer(s, usergrpcserver.NewUserServer(userSvc, logg))

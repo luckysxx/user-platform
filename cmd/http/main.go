@@ -13,6 +13,7 @@ import (
 	"github.com/luckysxx/user-platform/internal/service"
 	"github.com/luckysxx/user-platform/internal/transport/http/handler"
 	httprouter "github.com/luckysxx/user-platform/internal/transport/http/router"
+	"github.com/luckysxx/user-platform/pkg/ratelimiter"
 )
 
 // @title           User Platform Service
@@ -35,7 +36,9 @@ func main() {
 	userRepo := repository.NewUserRepository(entClient)
 	jwtManager := auth.NewJWTManager(cfg.JWT.Secret)
 	userSvc := service.NewUserService(userRepo, publisher, log)
-	authSvc := service.NewAuthService(userRepo, redisClient, jwtManager, log)
+	
+	rateLim := ratelimiter.NewRedisLimiter(redisClient, log)
+	authSvc := service.NewAuthService(userRepo, redisClient, jwtManager, rateLim, log)
 	userHandler := handler.NewUserHandler(userSvc, authSvc, log)
 
 	r := gin.New()
