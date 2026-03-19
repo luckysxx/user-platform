@@ -1,6 +1,7 @@
 package response
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/luckysxx/user-platform/pkg/errs"
@@ -27,7 +28,8 @@ func Error(c *gin.Context, err error) {
 		zapLogger, _ = logger.(*zap.Logger)
 	}
 
-	if customErr, ok := err.(*errs.CustomError); ok {
+	var customErr *errs.CustomError
+	if errors.As(err, &customErr) {
 		// 记录详细的错误信息到日志
 		if zapLogger != nil {
 			// 记录详细错误（包含原始错误）

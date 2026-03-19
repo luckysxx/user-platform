@@ -1,102 +1,64 @@
 package config
 
 import (
-	"os"
-	"strconv"
+	"log"
+	"strings"
 
-	"github.com/joho/godotenv"
+	"github.com/spf13/viper"
 )
 
 type Config struct {
-	AppEnv   string
-	Server   ServerConfig
-	Database DatabaseConfig
-	Redis    RedisConfig
-	JWT      JWTConfig
-	Kafka    KafkaConfig
+	AppEnv   string         `mapstructure:"app_env"`
+	Server   ServerConfig   `mapstructure:"server"`
+	Database DatabaseConfig `mapstructure:"database"`
+	Redis    RedisConfig    `mapstructure:"redis"`
+	JWT      JWTConfig      `mapstructure:"jwt"`
+	Kafka    KafkaConfig    `mapstructure:"kafka"`
 }
 
 type ServerConfig struct {
-	Port string
+	Port string `mapstructure:"port"`
 }
 
 type KafkaConfig struct {
-	Brokers             string
-	TopicUserRegistered string
+	Brokers             string `mapstructure:"brokers"`
+	TopicUserRegistered string `mapstructure:"topic_user_registered"`
 }
 
 type DatabaseConfig struct {
-	Driver      string
-	Source      string
-	AutoMigrate bool
+	Driver      string `mapstructure:"driver"`
+	Source      string `mapstructure:"source"`
+	AutoMigrate bool   `mapstructure:"auto_migrate"`
 }
 
 type RedisConfig struct {
-	Addr     string
-	Password string
-	DB       int
+	Addr     string `mapstructure:"addr"`
+	Password string `mapstructure:"password"`
+	DB       int    `mapstructure:"db"`
 }
 
 type JWTConfig struct {
-	Secret string
+	Secret string `mapstructure:"secret"`
 }
 
-// LoadConfig 从环境变量加载配置（后期可改为配置文件）
+// LoadConfig 从 Viper 加载配置
 func LoadConfig() *Config {
-	// 尝试加载 .env 文件（如果存在）
-	_ = godotenv.Load()
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath("./configs") // 支持项目根目录启动
+	viper.AddConfigPath(".")         
+	
+	// 允许环境变量覆盖配置 (比如 export KAFKA_BROKERS=xyz)
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	viper.AutomaticEnv()
 
-	dbSource := getEnv("DB_SOURCE",
-		"postgres://luckys:123456@localhost:5432/user_platform?sslmode=disable")
-	appEnv := getEnv("APP_ENV", "development")
-	autoMigrateDefault := appEnv != "production"
-
-	return &Config{
-		AppEnv: appEnv,
-		Server: ServerConfig{
-			Port: getEnv("SERVER_PORT", "8080"),
-		},
-		Database: DatabaseConfig{
-			Driver:      getEnv("DB_DRIVER", "postgres"),
-			Source:      dbSource,
-			AutoMigrate: getEnvAsBool("DB_AUTO_MIGRATE", autoMigrateDefault),
-		},
-		Redis: RedisConfig{
-			Addr:     getEnv("REDIS_ADDR", "localhost:6379"),
-			Password: getEnv("REDIS_PASSWORD", "123456"),
-			DB:       getEnvAsInt("REDIS_DB", 0),
-		},
-		JWT: JWTConfig{
-			Secret: getEnv("JWT_SECRET", "user_platform_secret_key"),
-		},
-		Kafka: KafkaConfig{
-			Brokers:             getEnv("KAFKA_BROKERS", "localhost:9092"),
-			TopicUserRegistered: getEnv("KAFKA_TOPIC_USER_REGISTERED", "user_registered"),
-		},
+	if err := viper.ReadInConfig(); err != nil {
+		log.Printf("Warning: No config.yaml found, relying entirely on ENV variables: %v", err)
 	}
-}
 
-func getEnv(key, defaultVal string) string {
-	if val := os.Getenv(key); val != "" {
-		return val
+	var cfg Config
+	if err := viper.Unmarshal(&cfg); err != nil {
+		log.Fatalf("Failed to unmarshal config: %v", err)
 	}
-	return defaultVal
-}
-
-func getEnvAsInt(key string, defaultVal int) int {
-	if val := os.Getenv(key); val != "" {
-		if intVal, err := strconv.Atoi(val); err == nil {
-			return intVal
-		}
-	}
-	return defaultVal
-}
-
-func getEnvAsBool(key string, defaultVal bool) bool {
-	if val := os.Getenv(key); val != "" {
-		if boolVal, err := strconv.ParseBool(val); err == nil {
-			return boolVal
-		}
-	}
-	return defaultVal
+	return &cfg
 }

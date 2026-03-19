@@ -7,33 +7,35 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/luckysxx/user-platform/internal/auth"
+	pkgerrs "github.com/luckysxx/user-platform/pkg/errs"
 	"github.com/luckysxx/user-platform/internal/dberr"
 	"github.com/luckysxx/user-platform/internal/repository"
 	servicecontract "github.com/luckysxx/user-platform/internal/service/contract"
+	"github.com/luckysxx/user-platform/pkg/crypto"
 	"github.com/luckysxx/user-platform/pkg/ratelimiter"
-	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
-	"golang.org/x/crypto/bcrypt"
 )
 
-// 将错误定义移回所属的域
+// 将错误定义移回所属的域，并统一升级为领域模型错误
 var (
-	ErrInvalidCredentials   = errors.New("用户名或密码错误")
-	ErrTokenGeneration      = errors.New("生成 Token 失败")
-	ErrAccountAbnormal      = errors.New("账号异常或已被封禁")
-	ErrAppNotFound          = errors.New("应用不存在")
-	ErrTooManyLoginAttempts = errors.New("尝试登录次数过多，请15分钟后再试")
+	ErrInvalidCredentials   = pkgerrs.NewParamErr("用户名或密码错误", nil)
+	ErrTokenGeneration      = pkgerrs.NewServerErr(errors.New("生成 Token 失败"))
+	ErrAccountAbnormal      = pkgerrs.New(pkgerrs.Forbidden, "账号异常或已被封禁", nil)
+	ErrAppNotFound          = pkgerrs.NewParamErr("应用不存在", nil)
+	ErrTooManyLoginAttempts = pkgerrs.NewParamErr("尝试登录次数过多，请15分钟后再试", nil)
 )
 
 type AuthService interface {
 	Login(ctx context.Context, req *servicecontract.LoginCommand) (*servicecontract.LoginResult, error)
 	VerifyToken(ctx context.Context, req *servicecontract.VerifyTokenCommand) (*servicecontract.VerifyTokenResult, error)
 	RefreshToken(ctx context.Context, req *servicecontract.RefreshTokenCommand) (*servicecontract.RefreshTokenResult, error)
+	Logout(ctx context.Context, req *servicecontract.LogoutCommand) error
 }
 
 type authService struct {
 	repo       repository.UserRepository
-	redisCli   *redis.Client
+	appRepo    repository.AppRepository
+	session    repository.SessionRepository
 	jwtManager *auth.JWTManager
 	limiter    ratelimiter.Limiter
 	logger     *zap.Logger
@@ -41,14 +43,16 @@ type authService struct {
 
 func NewAuthService(
 	repo repository.UserRepository,
-	redisCli *redis.Client,
+	appRepo repository.AppRepository,
+	session repository.SessionRepository,
 	jwtManager *auth.JWTManager,
 	limiter ratelimiter.Limiter,
 	logger *zap.Logger,
 ) AuthService {
 	return &authService{
 		repo:       repo,
-		redisCli:   redisCli,
+		appRepo:    appRepo,
+		session:    session,
 		jwtManager: jwtManager,
 		limiter:    limiter,
 		logger:     logger,
@@ -77,12 +81,12 @@ func (s *authService) Login(ctx context.Context, req *servicecontract.LoginComma
 	}
 
 	// 2. 比较密码
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
+	if !crypto.CheckPasswordHash(req.Password, user.Password) {
 		return nil, ErrInvalidCredentials
 	}
 
 	// 3. 首次登录某应用时自动建立授权关系（幂等）。
-	err = s.repo.EnsureAppAuthorized(ctx, user.ID, req.AppCode)
+	err = s.appRepo.EnsureAppAuthorized(ctx, user.ID, req.AppCode)
 	if err != nil {
 		if errors.Is(err, dberr.ErrNoRows) {
 			return nil, ErrAppNotFound
@@ -91,7 +95,7 @@ func (s *authService) Login(ctx context.Context, req *servicecontract.LoginComma
 	}
 
 	// 4. 签发双 Token (提取为一个内部方法，复用逻辑)
-	return s.issueTokens(ctx, user.ID, user.Username)
+	return s.issueTokens(ctx, user.ID, user.Username, req.DeviceID)
 }
 
 func (s *authService) VerifyToken(ctx context.Context, req *servicecontract.VerifyTokenCommand) (*servicecontract.VerifyTokenResult, error) {
@@ -107,27 +111,28 @@ func (s *authService) VerifyToken(ctx context.Context, req *servicecontract.Veri
 }
 
 func (s *authService) RefreshToken(ctx context.Context, req *servicecontract.RefreshTokenCommand) (*servicecontract.RefreshTokenResult, error) {
-	// 1. 从 Redis 中验证 Refresh Token 是否有效 (注意增加前缀)
-	redisKey := fmt.Sprintf("refresh_token:%s", req.Token)
-	userID, err := s.redisCli.Get(ctx, redisKey).Int64()
+	// 1. 底层解析验证 Hash mapping 完全解耦：查验并获取 UserID
+	userID, deviceID, err := s.session.GetSessionByToken(ctx, req.Token)
 	if err != nil {
-		if errors.Is(err, redis.Nil) {
-			return nil, auth.ErrInvalidOrExpiredToken
-		}
-		return nil, fmt.Errorf("查询Refresh Token失败: %w", err)
+		return nil, err
 	}
 
-	// 2. 轮换自毁，从 Redis 删掉这个用过的 RT
-	s.redisCli.Del(ctx, redisKey)
+	// 2. 验证 Hash 表中该设备的 Token 也对得上
+	if err := s.session.ValidateDeviceToken(ctx, userID, deviceID, req.Token); err != nil {
+		return nil, err
+	}
 
-	// 3. 去数据库查一下该用户的最新状态（获取最新的 username，并拦截被封禁的用户）
+	// 3. 轮换自毁：删掉旧的逆向索引
+	s.session.DeleteTokenIndex(ctx, req.Token)
+
+	// 4. 去数据库查一下该用户的最新状态（获取最新的 username，并拦截被封禁的用户）
 	user, err := s.repo.GetByID(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("试图刷新Token但用户(uid:%d)不存在: %w", userID, ErrAccountAbnormal)
 	}
 
-	// 4. 重新签发一套全新的 Access Token 和 Refresh Token
-	result, err := s.issueTokens(ctx, user.ID, user.Username)
+	// 5. 重新签发一套全新的 Access Token 和 Refresh Token 给相同的 deviceID
+	result, err := s.issueTokens(ctx, user.ID, user.Username, deviceID)
 	if err != nil {
 		return nil, err
 	}
@@ -139,8 +144,8 @@ func (s *authService) RefreshToken(ctx context.Context, req *servicecontract.Ref
 	}, nil
 }
 
-// 内部方法：统一处理双 Token 的签发与 Redis 存储
-func (s *authService) issueTokens(ctx context.Context, userID int64, username string) (*servicecontract.LoginResult, error) {
+// 内部方法：统一处理双 Token 的签发与 Redis 设备级存储
+func (s *authService) issueTokens(ctx context.Context, userID int64, username string, deviceID string) (*servicecontract.LoginResult, error) {
 	// 1. 生成 Access Token
 	accessToken, err := s.jwtManager.GenerateAccessToken(userID, username)
 	if err != nil {
@@ -149,11 +154,11 @@ func (s *authService) issueTokens(ctx context.Context, userID int64, username st
 
 	// 2. 生成纯 UUID 的 Refresh Token
 	refreshToken := uuid.New().String()
-	redisKey := fmt.Sprintf("refresh_token:%s", refreshToken)
-
-	// 3. 存储到 Redis
-	if err := s.redisCli.Set(ctx, redisKey, userID, auth.RefreshTokenDuration).Err(); err != nil {
-		return nil, fmt.Errorf("存储 Refresh Token 失败 (uid:%d, cause:%v): %w", userID, err, ErrTokenGeneration)
+	
+	// 3. 存储到持久化层
+	err = s.session.SaveDeviceSession(ctx, userID, deviceID, refreshToken, auth.RefreshTokenDuration)
+	if err != nil {
+		return nil, fmt.Errorf("存储 Session 失败 (uid:%d): %w", userID, err)
 	}
 
 	return &servicecontract.LoginResult{
@@ -162,4 +167,19 @@ func (s *authService) issueTokens(ctx context.Context, userID int64, username st
 		UserID:       userID,
 		Username:     username,
 	}, nil
+}
+
+// Logout 登出功能：只删除特定设备的 Session 信息，不影响当前用户的其他设备。
+func (s *authService) Logout(ctx context.Context, req *servicecontract.LogoutCommand) error {
+	// 交给底层：先删除哈希中的记录，如果有旧Token也一并清理
+	oldToken, err := s.session.DeleteDeviceSession(ctx, req.UserID, req.DeviceID)
+	if err != nil {
+		return fmt.Errorf("注销设备失败: %w", err)
+	}
+	if oldToken != "" {
+		s.session.DeleteTokenIndex(ctx, oldToken)
+	}
+
+	s.logger.Info("用户退出设备", zap.Int64("user_id", req.UserID), zap.String("device_id", req.DeviceID))
+	return nil
 }

@@ -5,6 +5,13 @@ type LoginCommand struct {
 	Username string
 	Password string
 	AppCode  string
+	DeviceID string
+}
+
+// LogoutCommand is the service-layer input for logging out.
+type LogoutCommand struct {
+	UserID   int64
+	DeviceID string
 }
 
 // LoginResult is the service-layer output for login.

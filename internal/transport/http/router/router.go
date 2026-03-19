@@ -1,6 +1,7 @@
 package router
 
 import (
+	"github.com/luckysxx/user-platform/internal/auth"
 	"github.com/luckysxx/user-platform/internal/transport/http/handler"
 	"github.com/luckysxx/user-platform/internal/transport/http/middleware"
 
@@ -8,7 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func SetupRouter(r *gin.Engine, userHandler *handler.UserHandler, log *zap.Logger) {
+func SetupRouter(r *gin.Engine, userHandler *handler.UserHandler, jwtManager *auth.JWTManager, log *zap.Logger) {
 	r.Use(middleware.TraceMiddleware())
 	r.Use(middleware.GinLogger(log))
 	r.Use(middleware.GinRecovery(log, true))
@@ -27,6 +28,13 @@ func SetupRouter(r *gin.Engine, userHandler *handler.UserHandler, log *zap.Logge
 			users.POST("/register", userHandler.Register)
 			users.POST("/login", userHandler.Login)
 			users.POST("/refresh", userHandler.RefreshToken)
+
+			// 需要鉴权的接口组
+			authUsers := users.Group("")
+			authUsers.Use(middleware.JWTAuth(jwtManager, log))
+			{
+				authUsers.POST("/logout", userHandler.Logout)
+			}
 		}
 	}
 }

@@ -12,6 +12,12 @@ type LoginRequest struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
 	AppCode  string `json:"app_code" binding:"required"`
+	DeviceID string `json:"device_id" binding:"required"`
+}
+
+// LogoutRequest is the HTTP DTO for user logout.
+type LogoutRequest struct {
+	DeviceID string `json:"device_id" binding:"required"`
 }
 
 // RegisterResponse is the HTTP DTO for registration response.

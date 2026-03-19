@@ -51,7 +51,9 @@ func main() {
 	userSvc := service.NewUserService(userRepo, publisher, logg)
 	jwtManager := auth.NewJWTManager(cfg.JWT.Secret)
 	rateLim := ratelimiter.NewRedisLimiter(redisClient, logg)
-	authSvc := service.NewAuthService(userRepo, redisClient, jwtManager, rateLim, logg)
+	sessionRepo := repository.NewRedisSessionRepo(redisClient) // 新增
+	appRepo := repository.NewAppRepository(entClient)
+	authSvc := service.NewAuthService(userRepo, appRepo, sessionRepo, jwtManager, rateLim, logg)
 
 	s := grpc.NewServer()
 	user_pb.RegisterUserServiceServer(s, usergrpcserver.NewUserServer(userSvc, logg))

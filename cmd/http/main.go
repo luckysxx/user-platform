@@ -36,12 +36,15 @@ func main() {
 	userRepo := repository.NewUserRepository(entClient)
 	jwtManager := auth.NewJWTManager(cfg.JWT.Secret)
 	userSvc := service.NewUserService(userRepo, publisher, log)
-	
+
 	rateLim := ratelimiter.NewRedisLimiter(redisClient, log)
-	authSvc := service.NewAuthService(userRepo, redisClient, jwtManager, rateLim, log)
+	sessionRepo := repository.NewRedisSessionRepo(redisClient)
+	appRepo := repository.NewAppRepository(entClient)
+	authSvc := service.NewAuthService(userRepo, appRepo, sessionRepo, jwtManager, rateLim, log)
 	userHandler := handler.NewUserHandler(userSvc, authSvc, log)
 
 	r := gin.New()
-	httprouter.SetupRouter(r, userHandler, log)
+	httprouter.SetupRouter(r, userHandler, jwtManager, log)
+
 	r.Run(":" + cfg.Server.Port)
 }

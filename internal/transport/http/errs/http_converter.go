@@ -13,6 +13,11 @@ func ConvertToCustomError(err error) *pkgerrs.CustomError {
 		return nil
 	}
 
+	var customErr *pkgerrs.CustomError
+	if errors.As(err, &customErr) {
+		return customErr
+	}
+
 	switch {
 	case errors.Is(err, dberr.ErrUsernameDuplicate):
 		return pkgerrs.NewParamErr("用户名已存在", err)

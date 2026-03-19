@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/luckysxx/user-platform/internal/dberr"
+	pkgerrs "github.com/luckysxx/user-platform/pkg/errs"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -12,6 +13,22 @@ import (
 func ToGRPCError(err error) error {
 	if err == nil {
 		return nil
+	}
+
+	var customErr *pkgerrs.CustomError
+	if errors.As(err, &customErr) {
+		switch customErr.Code {
+		case pkgerrs.ParamErr:
+			return status.Error(codes.InvalidArgument, customErr.Msg)
+		case pkgerrs.Unauthorized:
+			return status.Error(codes.Unauthenticated, customErr.Msg)
+		case pkgerrs.Forbidden:
+			return status.Error(codes.PermissionDenied, customErr.Msg)
+		case pkgerrs.NotFound:
+			return status.Error(codes.NotFound, customErr.Msg)
+		default:
+			return status.Error(codes.Internal, customErr.Msg)
+		}
 	}
 
 	switch {

@@ -1,15 +1,13 @@
 package handler
 
 import (
-	"errors"
-
 	"github.com/luckysxx/user-platform/internal/service"
 	servicecontract "github.com/luckysxx/user-platform/internal/service/contract"
 	httpdto "github.com/luckysxx/user-platform/internal/transport/http/dto"
 	httperrs "github.com/luckysxx/user-platform/internal/transport/http/errs"
+	"github.com/luckysxx/user-platform/internal/transport/http/middleware"
 	"github.com/luckysxx/user-platform/internal/transport/http/response"
 	"github.com/luckysxx/user-platform/internal/transport/http/validator"
-	pkgerrs "github.com/luckysxx/user-platform/pkg/errs"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -85,22 +83,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 	})
 	if err != nil {
 		h.logger.Error("用户登录失败", zap.Error(err))
-
-		// 登录失败需要特殊处理，不暴露具体原因
-		if errors.Is(err, service.ErrInvalidCredentials) {
-			response.Error(c, pkgerrs.NewParamErr("用户名或密码错误", err))
-			return
-		}
-		if errors.Is(err, service.ErrAppNotFound) {
-			response.Error(c, pkgerrs.NewParamErr("应用不存在", err))
-			return
-		}
-		if errors.Is(err, service.ErrTooManyLoginAttempts) {
-			response.Error(c, pkgerrs.NewParamErr("尝试登录次数过多，请15分钟后再试", err))
-			return
-		}
-
-		// 其他错误统一转换
+		// 这里可以直接抛出，因为底层 Service 已经是 Domain Error 了
 		response.Error(c, httperrs.ConvertToCustomError(err))
 		return
 	}
@@ -133,4 +116,40 @@ func (h *UserHandler) RefreshToken(c *gin.Context) {
 		AccessToken:  token.AccessToken,
 		RefreshToken: token.RefreshToken,
 	})
+}
+
+// @Summary      用户登出
+// @Description  登出特定设备
+// @Tags         User
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.LogoutRequest true "登出信息"
+// @Success      200 
+// @Router       /users/logout [post]
+func (h *UserHandler) Logout(c *gin.Context) {
+	var req httpdto.LogoutRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errMsg := validator.TranslateValidationError(err)
+		h.logger.Warn("参数验证失败", zap.Error(err), zap.String("message", errMsg))
+		response.BadRequest(c, errMsg)
+		return
+	}
+
+	// 经过 Auth 中间件后，安全的获取身份
+	userID, ok := middleware.GetUserID(c)
+	if !ok {
+		response.Unauthorized(c, "未授权的访问")
+		return
+	}
+
+	err := h.avc.Logout(c.Request.Context(), &servicecontract.LogoutCommand{
+		UserID:   userID,
+		DeviceID: req.DeviceID,
+	})
+	if err != nil {
+		h.logger.Error("登出失败", zap.Error(err))
+		response.Error(c, err)
+		return
+	}
+	response.Success(c, nil)
 }

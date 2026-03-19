@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"errors"
 	"strings"
 
 	"github.com/luckysxx/user-platform/internal/service"
@@ -35,18 +34,7 @@ func (s *AuthServer) Login(ctx context.Context, req *pb.LoginRequest) (*pb.Login
 		AppCode:  req.GetAppCode(),
 	})
 	if err != nil {
-		switch {
-		case errors.Is(err, service.ErrInvalidCredentials):
-			return nil, status.Error(codes.Unauthenticated, "用户名或密码错误")
-		case errors.Is(err, service.ErrAppNotFound):
-			return nil, status.Error(codes.InvalidArgument, "app_code does not exist")
-		case errors.Is(err, service.ErrTooManyLoginAttempts):
-			return nil, status.Error(codes.ResourceExhausted, "尝试登录次数过多，请15分钟后再试")
-		case errors.Is(err, service.ErrTokenGeneration):
-			return nil, status.Error(codes.Internal, "internal error")
-		default:
-			return nil, grpcerrs.ToGRPCError(err)
-		}
+		return nil, grpcerrs.ToGRPCError(err)
 	}
 
 	return &pb.LoginResponse{
@@ -71,4 +59,10 @@ func (s *AuthServer) RefreshToken(ctx context.Context, req *pb.RefreshTokenReque
 		AccessToken:  resp.AccessToken,
 		RefreshToken: resp.RefreshToken,
 	}, nil
+}
+
+func (s *AuthServer) Logout(ctx context.Context, req *pb.LogoutRequest) (*pb.LogoutResponse, error) {
+	// TODO: 目前尚未实现全局 gRPC Interceptor 以解析 JWT 获取 UserID。
+	// 这里暂时屏蔽 gRPC 的登出实现，前端如果走 WebSocket+gRPC 需要在网关层或引入 Interceptor 处理鉴权。
+	return nil, status.Error(codes.Unimplemented, "Logout via gRPC requires Auth Interceptor which is pending")
 }

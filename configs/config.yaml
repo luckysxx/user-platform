@@ -1,0 +1,21 @@
+app_env: "development"
+
+server:
+  port: "8081"
+
+database:
+  driver: "postgres"
+  source: "postgres://luckys:123456@localhost:5432/user_platform?sslmode=disable"
+  auto_migrate: true
+
+redis:
+  addr: "localhost:6379"
+  password: "123456"
+  db: 0
+
+jwt:
+  secret: "user_platform_secret_key"
+
+kafka:
+  brokers: "localhost:9092"
+  topic_user_registered: "user_registered"
