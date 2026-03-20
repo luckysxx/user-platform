@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/luckysxx/user-platform/pkg/trace"
+	"github.com/luckysxx/common/trace"
 	"github.com/segmentio/kafka-go"
 	"go.uber.org/zap"
 )

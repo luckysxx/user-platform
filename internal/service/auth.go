@@ -6,13 +6,13 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/luckysxx/common/crypto"
+	pkgerrs "github.com/luckysxx/common/errs"
+	"github.com/luckysxx/common/ratelimiter"
 	"github.com/luckysxx/user-platform/internal/auth"
-	pkgerrs "github.com/luckysxx/user-platform/pkg/errs"
 	"github.com/luckysxx/user-platform/internal/dberr"
 	"github.com/luckysxx/user-platform/internal/repository"
 	servicecontract "github.com/luckysxx/user-platform/internal/service/contract"
-	"github.com/luckysxx/user-platform/pkg/crypto"
-	"github.com/luckysxx/user-platform/pkg/ratelimiter"
 	"go.uber.org/zap"
 )
 
@@ -154,7 +154,7 @@ func (s *authService) issueTokens(ctx context.Context, userID int64, username st
 
 	// 2. 生成纯 UUID 的 Refresh Token
 	refreshToken := uuid.New().String()
-	
+
 	// 3. 存储到持久化层
 	err = s.session.SaveDeviceSession(ctx, userID, deviceID, refreshToken, auth.RefreshTokenDuration)
 	if err != nil {

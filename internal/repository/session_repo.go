@@ -32,7 +32,7 @@ func NewRedisSessionRepo(cli *redis.Client) SessionRepository {
 
 func (r *redisSessionRepo) SaveDeviceSession(ctx context.Context, userID int64, deviceID string, refreshToken string, duration time.Duration) error {
 	pipe := r.cli.TxPipeline()
-	
+
 	// a. 逆向索引
 	redisKey := fmt.Sprintf("refresh_token:%s", refreshToken)
 	val := fmt.Sprintf("%d:%s", userID, deviceID)
@@ -63,7 +63,7 @@ func (r *redisSessionRepo) GetSessionByToken(ctx context.Context, refreshToken s
 	if len(parts) != 2 {
 		return 0, "", fmt.Errorf("invalid format in redis: %s", val)
 	}
-	
+
 	userID, _ := strconv.ParseInt(parts[0], 10, 64)
 	return userID, parts[1], nil
 }
@@ -88,11 +88,11 @@ func (r *redisSessionRepo) DeleteDeviceSession(ctx context.Context, userID int64
 	if err != nil && !errors.Is(err, redis.Nil) {
 		return "", fmt.Errorf("redis hget failed: %w", err)
 	}
-	
+
 	// 从用户的设备集合中彻底剔除该设备
 	if err := r.cli.HDel(ctx, hashKey, deviceID).Err(); err != nil {
 		return "", fmt.Errorf("redis hdel failed: %w", err)
 	}
-	
+
 	return oldToken, nil
 }

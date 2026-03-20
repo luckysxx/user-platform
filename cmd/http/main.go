@@ -3,17 +3,20 @@ package main
 import (
 	"github.com/gin-gonic/gin"
 
+	"github.com/luckysxx/common/logger"
+	"github.com/luckysxx/common/ratelimiter"
+	"github.com/luckysxx/common/rpc"
 	"github.com/luckysxx/user-platform/internal/auth"
 	"github.com/luckysxx/user-platform/internal/cache"
 	"github.com/luckysxx/user-platform/internal/event"
 	"github.com/luckysxx/user-platform/internal/platform/config"
 	"github.com/luckysxx/user-platform/internal/platform/database"
-	"github.com/luckysxx/user-platform/internal/platform/logger"
 	"github.com/luckysxx/user-platform/internal/repository"
 	"github.com/luckysxx/user-platform/internal/service"
 	"github.com/luckysxx/user-platform/internal/transport/http/handler"
 	httprouter "github.com/luckysxx/user-platform/internal/transport/http/router"
-	"github.com/luckysxx/user-platform/pkg/ratelimiter"
+	"go.uber.org/zap"
+	"os"
 )
 
 // @title           User Platform Service
@@ -26,6 +29,15 @@ func main() {
 	defer log.Sync()
 
 	cfg := config.LoadConfig()
+
+	idGenAddr := os.Getenv("ID_GENERATOR_ADDR")
+	if idGenAddr == "" {
+		idGenAddr = "localhost:50059"
+	}
+	if err := rpc.InitIDGenClient(idGenAddr); err != nil {
+		log.Fatal("init id generator client failed", zap.Error(err))
+	}
+
 	entClient := database.InitEntClient(cfg.Database, log)
 	defer entClient.Close()
 	redisClient := cache.InitRedis(cfg.Redis, log)

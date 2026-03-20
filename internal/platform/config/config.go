@@ -46,8 +46,8 @@ func LoadConfig() *Config {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath("./configs") // 支持项目根目录启动
-	viper.AddConfigPath(".")         
-	
+	viper.AddConfigPath(".")
+
 	// 允许环境变量覆盖配置 (比如 export KAFKA_BROKERS=xyz)
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()

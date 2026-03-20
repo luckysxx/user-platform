@@ -9,8 +9,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	pb "github.com/luckysxx/common/proto/user"
 	"github.com/luckysxx/user-platform/internal/service"
-	pb "github.com/luckysxx/user-platform/proto/user"
 
 	"go.uber.org/zap"
 )

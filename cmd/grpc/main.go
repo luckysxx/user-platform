@@ -8,18 +8,19 @@ import (
 
 	"google.golang.org/grpc"
 
+	"github.com/luckysxx/common/logger"
+	auth_pb "github.com/luckysxx/common/proto/auth"
+	user_pb "github.com/luckysxx/common/proto/user"
+	"github.com/luckysxx/common/ratelimiter"
+	"github.com/luckysxx/common/rpc"
 	"github.com/luckysxx/user-platform/internal/auth"
 	"github.com/luckysxx/user-platform/internal/cache"
 	"github.com/luckysxx/user-platform/internal/event"
 	"github.com/luckysxx/user-platform/internal/platform/config"
 	"github.com/luckysxx/user-platform/internal/platform/database"
-	"github.com/luckysxx/user-platform/internal/platform/logger"
 	"github.com/luckysxx/user-platform/internal/repository"
 	"github.com/luckysxx/user-platform/internal/service"
 	usergrpcserver "github.com/luckysxx/user-platform/internal/transport/grpc/server"
-	auth_pb "github.com/luckysxx/user-platform/proto/auth"
-	user_pb "github.com/luckysxx/user-platform/proto/user"
-	"github.com/luckysxx/user-platform/pkg/ratelimiter"
 
 	"go.uber.org/zap"
 )
@@ -40,6 +41,15 @@ func main() {
 	logg := logger.NewLogger("user-grpc")
 	defer logg.Sync()
 	cfg := config.LoadConfig()
+
+	idGenAddr := os.Getenv("ID_GENERATOR_ADDR")
+	if idGenAddr == "" {
+		idGenAddr = "localhost:50059"
+	}
+	if err := rpc.InitIDGenClient(idGenAddr); err != nil {
+		logg.Fatal("init id generator client failed", zap.Error(err))
+	}
+
 	entClient := database.InitEntClient(cfg.Database, logg)
 	defer entClient.Close()
 	redisClient := cache.InitRedis(cfg.Redis, logg)

@@ -124,7 +124,7 @@ func (h *UserHandler) RefreshToken(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @Param        request body dto.LogoutRequest true "登出信息"
-// @Success      200 
+// @Success      200
 // @Router       /users/logout [post]
 func (h *UserHandler) Logout(c *gin.Context) {
 	var req httpdto.LogoutRequest

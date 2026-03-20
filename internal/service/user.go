@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/luckysxx/common/crypto"
+	"github.com/luckysxx/common/trace"
 	"github.com/luckysxx/user-platform/internal/event"
 	"github.com/luckysxx/user-platform/internal/repository"
 	servicecontract "github.com/luckysxx/user-platform/internal/service/contract"
-	"github.com/luckysxx/user-platform/pkg/crypto"
-	"github.com/luckysxx/user-platform/pkg/trace"
 
 	"go.uber.org/zap"
 )

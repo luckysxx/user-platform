@@ -3,8 +3,8 @@ package errs
 import (
 	"errors"
 
+	pkgerrs "github.com/luckysxx/common/errs"
 	"github.com/luckysxx/user-platform/internal/dberr"
-	pkgerrs "github.com/luckysxx/user-platform/pkg/errs"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

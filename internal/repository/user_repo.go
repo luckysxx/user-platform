@@ -2,7 +2,9 @@ package repository
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/luckysxx/common/rpc"
 	"github.com/luckysxx/user-platform/internal/dberr"
 	"github.com/luckysxx/user-platform/internal/ent"
 	"github.com/luckysxx/user-platform/internal/ent/user"
@@ -23,7 +25,15 @@ func NewUserRepository(client *ent.Client) UserRepository {
 }
 
 func (r *userRepository) Create(ctx context.Context, email string, username string, passwordhash string) (*ent.User, error) {
+	// 1. 从远端发号器获取全局唯一的雪花 ID
+	newID, err := rpc.GenerateID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("生成 Snowflake ID 失败: %w", err)
+	}
+
+	// 2. 将雪花 ID 显式注入实体
 	u, err := r.client.User.Create().
+		SetID(newID).
 		SetEmail(email).
 		SetUsername(username).
 		SetPassword(passwordhash).

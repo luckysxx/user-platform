@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/luckysxx/user-platform/pkg/trace"
+	"github.com/luckysxx/common/trace"
 )
 
 // TraceMiddleware 注入和提取全链路追踪 ID

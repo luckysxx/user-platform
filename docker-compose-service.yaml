@@ -13,6 +13,7 @@ services:
       - REDIS_ADDR=global-redis:6379
       - JWT_SECRET=user_platform_secret_key
       - KAFKA_BROKERS=global-kafka:9092
+      - ID_GENERATOR_ADDR=id-generator:50059
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8081/health"]
       interval: 10s
@@ -37,6 +38,7 @@ services:
       - REDIS_ADDR=global-redis:6379
       - JWT_SECRET=user_platform_secret_key
       - KAFKA_BROKERS=global-kafka:9092
+      - ID_GENERATOR_ADDR=id-generator:50059
     networks:
       - go-net
     restart: unless-stopped

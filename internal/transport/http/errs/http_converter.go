@@ -3,8 +3,8 @@ package errs
 import (
 	"errors"
 
+	pkgerrs "github.com/luckysxx/common/errs"
 	"github.com/luckysxx/user-platform/internal/dberr"
-	pkgerrs "github.com/luckysxx/user-platform/pkg/errs"
 )
 
 // ConvertToCustomError converts domain/storage errors to HTTP-facing business errors.
