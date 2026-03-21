@@ -1,4 +1,4 @@
-# User Platform 🏗️
+# User Platform
 
 Go 微服务中台，提供统一账号注册、多应用登录鉴权、Session 管理，同时暴露 HTTP 和 gRPC 两种协议。
 
