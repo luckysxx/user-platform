@@ -22,10 +22,13 @@ func NewAppRepository(client *ent.Client) AppRepository {
 	return &appRepository{client: client}
 }
 
+// EnsureAppAuthorized 确保用户已授权应用
 func (r *appRepository) EnsureAppAuthorized(ctx context.Context, userID int64, appCode string) error {
 	// 使用 Ent 推荐的标准事务闭包写法，保障高并发下的数据强一致性
-	return withTx(ctx, r.client, func(tx *ent.Tx) error {
-		appNode, err := tx.App.Query().Where(app.AppCodeEQ(appCode)).Only(ctx)
+	return WithTx(ctx, r.client, func(txCtx context.Context) error {
+		tx := ent.TxFromContext(txCtx)
+
+		appNode, err := tx.App.Query().Where(app.AppCodeEQ(appCode)).Only(txCtx)
 		if err != nil {
 			return dberr.ParseDBError(err)
 		}
@@ -33,7 +36,7 @@ func (r *appRepository) EnsureAppAuthorized(ctx context.Context, userID int64, a
 		_, err = tx.UserAppProfile.Query().
 			Where(userappprofile.HasUserWith(user.IDEQ(userID))).
 			Where(userappprofile.HasAppWith(app.IDEQ(appNode.ID))).
-			Only(ctx)
+			Only(txCtx)
 		if err == nil {
 			// 已经授权过了，正常结束（无需再建记录）
 			return nil
@@ -45,7 +48,7 @@ func (r *appRepository) EnsureAppAuthorized(ctx context.Context, userID int64, a
 		_, err = tx.UserAppProfile.Create().
 			SetUserID(userID).
 			SetAppID(appNode.ID).
-			Save(ctx)
+			Save(txCtx)
 		if err != nil {
 			if ent.IsConstraintError(err) {
 				// 极高并发下的“唯一约束冲突”（两个请求挤过了 SELECT 判断同时尝试 CREATE）

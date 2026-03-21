@@ -16,6 +16,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/luckysxx/user-platform/internal/ent/app"
+	"github.com/luckysxx/user-platform/internal/ent/eventoutbox"
 	"github.com/luckysxx/user-platform/internal/ent/user"
 	"github.com/luckysxx/user-platform/internal/ent/userappprofile"
 )
@@ -27,6 +28,8 @@ type Client struct {
 	Schema *migrate.Schema
 	// App is the client for interacting with the App builders.
 	App *AppClient
+	// EventOutbox is the client for interacting with the EventOutbox builders.
+	EventOutbox *EventOutboxClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 	// UserAppProfile is the client for interacting with the UserAppProfile builders.
@@ -43,6 +46,7 @@ func NewClient(opts ...Option) *Client {
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.App = NewAppClient(c.config)
+	c.EventOutbox = NewEventOutboxClient(c.config)
 	c.User = NewUserClient(c.config)
 	c.UserAppProfile = NewUserAppProfileClient(c.config)
 }
@@ -138,6 +142,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ctx:            ctx,
 		config:         cfg,
 		App:            NewAppClient(cfg),
+		EventOutbox:    NewEventOutboxClient(cfg),
 		User:           NewUserClient(cfg),
 		UserAppProfile: NewUserAppProfileClient(cfg),
 	}, nil
@@ -160,6 +165,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ctx:            ctx,
 		config:         cfg,
 		App:            NewAppClient(cfg),
+		EventOutbox:    NewEventOutboxClient(cfg),
 		User:           NewUserClient(cfg),
 		UserAppProfile: NewUserAppProfileClient(cfg),
 	}, nil
@@ -191,6 +197,7 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	c.App.Use(hooks...)
+	c.EventOutbox.Use(hooks...)
 	c.User.Use(hooks...)
 	c.UserAppProfile.Use(hooks...)
 }
@@ -199,6 +206,7 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	c.App.Intercept(interceptors...)
+	c.EventOutbox.Intercept(interceptors...)
 	c.User.Intercept(interceptors...)
 	c.UserAppProfile.Intercept(interceptors...)
 }
@@ -208,6 +216,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
 	case *AppMutation:
 		return c.App.mutate(ctx, m)
+	case *EventOutboxMutation:
+		return c.EventOutbox.mutate(ctx, m)
 	case *UserMutation:
 		return c.User.mutate(ctx, m)
 	case *UserAppProfileMutation:
@@ -363,6 +373,139 @@ func (c *AppClient) mutate(ctx context.Context, m *AppMutation) (Value, error) {
 		return (&AppDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown App mutation op: %q", m.Op())
+	}
+}
+
+// EventOutboxClient is a client for the EventOutbox schema.
+type EventOutboxClient struct {
+	config
+}
+
+// NewEventOutboxClient returns a client for the EventOutbox from the given config.
+func NewEventOutboxClient(c config) *EventOutboxClient {
+	return &EventOutboxClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `eventoutbox.Hooks(f(g(h())))`.
+func (c *EventOutboxClient) Use(hooks ...Hook) {
+	c.hooks.EventOutbox = append(c.hooks.EventOutbox, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `eventoutbox.Intercept(f(g(h())))`.
+func (c *EventOutboxClient) Intercept(interceptors ...Interceptor) {
+	c.inters.EventOutbox = append(c.inters.EventOutbox, interceptors...)
+}
+
+// Create returns a builder for creating a EventOutbox entity.
+func (c *EventOutboxClient) Create() *EventOutboxCreate {
+	mutation := newEventOutboxMutation(c.config, OpCreate)
+	return &EventOutboxCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of EventOutbox entities.
+func (c *EventOutboxClient) CreateBulk(builders ...*EventOutboxCreate) *EventOutboxCreateBulk {
+	return &EventOutboxCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EventOutboxClient) MapCreateBulk(slice any, setFunc func(*EventOutboxCreate, int)) *EventOutboxCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EventOutboxCreateBulk{err: fmt.Errorf("calling to EventOutboxClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EventOutboxCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EventOutboxCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for EventOutbox.
+func (c *EventOutboxClient) Update() *EventOutboxUpdate {
+	mutation := newEventOutboxMutation(c.config, OpUpdate)
+	return &EventOutboxUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EventOutboxClient) UpdateOne(_m *EventOutbox) *EventOutboxUpdateOne {
+	mutation := newEventOutboxMutation(c.config, OpUpdateOne, withEventOutbox(_m))
+	return &EventOutboxUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EventOutboxClient) UpdateOneID(id int) *EventOutboxUpdateOne {
+	mutation := newEventOutboxMutation(c.config, OpUpdateOne, withEventOutboxID(id))
+	return &EventOutboxUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for EventOutbox.
+func (c *EventOutboxClient) Delete() *EventOutboxDelete {
+	mutation := newEventOutboxMutation(c.config, OpDelete)
+	return &EventOutboxDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EventOutboxClient) DeleteOne(_m *EventOutbox) *EventOutboxDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EventOutboxClient) DeleteOneID(id int) *EventOutboxDeleteOne {
+	builder := c.Delete().Where(eventoutbox.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EventOutboxDeleteOne{builder}
+}
+
+// Query returns a query builder for EventOutbox.
+func (c *EventOutboxClient) Query() *EventOutboxQuery {
+	return &EventOutboxQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEventOutbox},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a EventOutbox entity by its id.
+func (c *EventOutboxClient) Get(ctx context.Context, id int) (*EventOutbox, error) {
+	return c.Query().Where(eventoutbox.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EventOutboxClient) GetX(ctx context.Context, id int) *EventOutbox {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *EventOutboxClient) Hooks() []Hook {
+	return c.hooks.EventOutbox
+}
+
+// Interceptors returns the client interceptors.
+func (c *EventOutboxClient) Interceptors() []Interceptor {
+	return c.inters.EventOutbox
+}
+
+func (c *EventOutboxClient) mutate(ctx context.Context, m *EventOutboxMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EventOutboxCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EventOutboxUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EventOutboxUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EventOutboxDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown EventOutbox mutation op: %q", m.Op())
 	}
 }
 
@@ -683,9 +826,9 @@ func (c *UserAppProfileClient) mutate(ctx context.Context, m *UserAppProfileMuta
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		App, User, UserAppProfile []ent.Hook
+		App, EventOutbox, User, UserAppProfile []ent.Hook
 	}
 	inters struct {
-		App, User, UserAppProfile []ent.Interceptor
+		App, EventOutbox, User, UserAppProfile []ent.Interceptor
 	}
 )

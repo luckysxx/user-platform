@@ -4,16 +4,19 @@ import (
 	"log"
 	"strings"
 
+	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
 )
 
 type Config struct {
-	AppEnv   string         `mapstructure:"app_env"`
-	Server   ServerConfig   `mapstructure:"server"`
-	Database DatabaseConfig `mapstructure:"database"`
-	Redis    RedisConfig    `mapstructure:"redis"`
-	JWT      JWTConfig      `mapstructure:"jwt"`
-	Kafka    KafkaConfig    `mapstructure:"kafka"`
+	AppEnv      string              `mapstructure:"app_env"`
+	Server      ServerConfig        `mapstructure:"server"`
+	GRPCServer  GRPCServerConfig    `mapstructure:"grpc_server"`
+	Database    DatabaseConfig      `mapstructure:"database"`
+	Redis       RedisConfig         `mapstructure:"redis"`
+	JWT         JWTConfig           `mapstructure:"jwt"`
+	Kafka       KafkaConfig         `mapstructure:"kafka"`
+	IDGenerator IDGeneratorConfig   `mapstructure:"id_generator"`
 }
 
 type ServerConfig struct {
@@ -41,14 +44,25 @@ type JWTConfig struct {
 	Secret string `mapstructure:"secret"`
 }
 
+type GRPCServerConfig struct {
+	Port string `mapstructure:"port"`
+}
+
+type IDGeneratorConfig struct {
+	Addr string `mapstructure:"addr"`
+}
+
 // LoadConfig 从 Viper 加载配置
 func LoadConfig() *Config {
+	// 在优先加载环境变量之前，尝试从根目录读取 .env 文件（如果在生产环境一般不用此文件，也不会报错）
+	_ = godotenv.Load()
+
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath("./configs") // 支持项目根目录启动
 	viper.AddConfigPath(".")
 
-	// 允许环境变量覆盖配置 (比如 export KAFKA_BROKERS=xyz)
+	// 允许环境变量覆盖配置 (比如 export DATABASE_SOURCE=xyz)
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 

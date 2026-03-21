@@ -34,7 +34,6 @@ func ToGRPCError(err error) error {
 	switch {
 	case errors.Is(err, dberr.ErrUsernameDuplicate),
 		errors.Is(err, dberr.ErrEmailDuplicate),
-		errors.Is(err, dberr.ErrShortLinkDuplicate),
 		errors.Is(err, dberr.ErrDuplicateKey),
 		errors.Is(err, dberr.ErrForeignKey),
 		errors.Is(err, dberr.ErrCheckViolation),

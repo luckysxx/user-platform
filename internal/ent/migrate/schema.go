@@ -20,6 +20,22 @@ var (
 		Columns:    AppsColumns,
 		PrimaryKey: []*schema.Column{AppsColumns[0]},
 	}
+	// EventOutboxesColumns holds the columns for the "event_outboxes" table.
+	EventOutboxesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "topic", Type: field.TypeString},
+		{Name: "payload", Type: field.TypeBytes},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "success", "failed"}, Default: "pending"},
+		{Name: "retry_count", Type: field.TypeInt, Default: 0},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// EventOutboxesTable holds the schema information for the "event_outboxes" table.
+	EventOutboxesTable = &schema.Table{
+		Name:       "event_outboxes",
+		Columns:    EventOutboxesColumns,
+		PrimaryKey: []*schema.Column{EventOutboxesColumns[0]},
+	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -67,6 +83,7 @@ var (
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		AppsTable,
+		EventOutboxesTable,
 		UsersTable,
 		UserAppProfilesTable,
 	}

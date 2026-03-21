@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/luckysxx/common/crypto"
-	"github.com/luckysxx/common/trace"
 	"github.com/luckysxx/user-platform/internal/event"
 	"github.com/luckysxx/user-platform/internal/repository"
 	servicecontract "github.com/luckysxx/user-platform/internal/service/contract"
@@ -18,13 +17,27 @@ type UserService interface {
 }
 
 type userService struct {
-	repo      repository.UserRepository
-	Publisher event.Publisher
-	logger    *zap.Logger
+	tm         repository.TransactionManager
+	userRepo   repository.UserRepository
+	outboxRepo repository.EventOutboxRepository
+	Publisher  event.Publisher
+	logger     *zap.Logger
 }
 
-func NewUserService(repo repository.UserRepository, publisher event.Publisher, logger *zap.Logger) UserService {
-	return &userService{repo: repo, Publisher: publisher, logger: logger}
+func NewUserService(
+	tm repository.TransactionManager,
+	userRepo repository.UserRepository,
+	outboxRepo repository.EventOutboxRepository,
+	publisher event.Publisher,
+	logger *zap.Logger,
+) UserService {
+	return &userService{
+		tm:         tm,
+		userRepo:   userRepo,
+		outboxRepo: outboxRepo,
+		Publisher:  publisher,
+		logger:     logger,
+	}
 }
 
 func (s *userService) Register(ctx context.Context, req *servicecontract.RegisterCommand) (*servicecontract.RegisterResult, error) {
@@ -34,31 +47,40 @@ func (s *userService) Register(ctx context.Context, req *servicecontract.Registe
 		return nil, fmt.Errorf("密码加密失败: %w", err)
 	}
 
-	// 调用数据库创建用户
-	user, err := s.repo.Create(ctx, req.Email, req.Username, hashedPwd)
-	if err != nil {
-		return nil, fmt.Errorf("创建用户失败: %w", err)
-	}
+	var resp *servicecontract.RegisterResult
 
-	resp := &servicecontract.RegisterResult{
-		Email:    user.Email,
-		UserID:   user.ID,
-		Username: user.Username,
-	}
-
-	// 从当前请求提取 TraceID 以传给后台任务
-	traceID := trace.FromContext(ctx)
-
-	// 发送 Kafka 消息
-	go func() {
-		// ⚠️ 极其经典的坑：不能在新的协程中复用来自于前台（比如 HTTP 请求）的 ctx
-		// 解决办法：传入一个独立的上下文，但需要手动把 traceID 带过去
-		bgCtx := trace.IntoContext(context.Background(), traceID)
-		err := s.Publisher.PublishUserRegistered(bgCtx, user.ID, user.Email, user.Username)
+	// 开启事务
+	err = s.tm.WithTx(ctx, func(txCtx context.Context) error {
+		// 创建用户
+		user, err := s.userRepo.Create(txCtx, req.Email, req.Username, hashedPwd)
 		if err != nil {
-			s.logger.Error("跨服务发送用户注册事件失败", zap.Error(err))
+			return fmt.Errorf("创建用户失败: %w", err)
 		}
-	}()
+
+		resp = &servicecontract.RegisterResult{
+			Email:    user.Email,
+			UserID:   user.ID,
+			Username: user.Username,
+		}
+
+		eventPayload := []byte(fmt.Sprintf(
+			`{"user_id": %d, "email": "%s", "username": "%s"}`,
+			user.ID,
+			user.Email,
+			user.Username,
+		))
+
+		err = s.outboxRepo.SaveEvent(txCtx, "UserRegistered", eventPayload)
+		if err != nil {
+			return fmt.Errorf("创建用户事件失败: %w", err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
 
 	return resp, nil
 }

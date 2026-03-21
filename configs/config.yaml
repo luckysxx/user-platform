@@ -3,19 +3,26 @@ app_env: "development"
 server:
   port: "8081"
 
+grpc_server:
+  port: "9091"
+
+id_generator:
+  addr: "localhost:50059"
+
 database:
   driver: "postgres"
-  source: "postgres://luckys:123456@localhost:5432/user_platform?sslmode=disable"
+  source: "" # 机密数据，请在 .env 中设置 DATABASE_SOURCE
   auto_migrate: true
 
 redis:
   addr: "localhost:6379"
-  password: "123456"
+  password: "" # 机密数据，请在 .env 中设置 REDIS_PASSWORD
   db: 0
 
 jwt:
-  secret: "user_platform_secret_key"
+  secret: "" # 机密数据，请在 .env 中设置 JWT_SECRET
 
 kafka:
   brokers: "localhost:9092"
   topic_user_registered: "user_registered"
+

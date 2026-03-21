@@ -40,7 +40,7 @@ func (User) Fields() []ent.Field {
 			Sensitive(). // 加上这个标签后，打印日志或者 JSON 序列化时，这个字段会被自动隐藏，防止密码泄露！
 			Comment("加密后的密码哈希"),
 
-		// 5. 状态：用枚举代替魔法数字 (0, 1)
+		// 5. 状态：用枚举代替
 		field.Enum("status").
 			Values("active", "banned", "deleted").
 			Default("active").

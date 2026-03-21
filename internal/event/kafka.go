@@ -30,15 +30,18 @@ type publisher struct {
 	writer *kafka.Writer
 }
 
+// NewKafkaWriter 初始化底层 Kafka Writer（供 OutboxWorker 等组件共享）
+func NewKafkaWriter(addr string) *kafka.Writer {
+	return &kafka.Writer{
+		Addr:                   kafka.TCP(addr),
+		Balancer:               &kafka.LeastBytes{},
+		AllowAutoTopicCreation: true,
+	}
+}
+
 // NewKafkaPublisher 初始化 Kafka 生产者
 func NewKafkaPublisher(addr string, logger *zap.Logger) *publisher {
-	w := &kafka.Writer{
-		Addr: kafka.TCP(addr),
-		// 这里不写死 Topic，让后续发送不同类型事件时更灵活
-		Balancer:               &kafka.LeastBytes{},
-		AllowAutoTopicCreation: true, // 允许生产者在发现 Topic 不存在时，自动向 Broker 申请创建
-	}
-	return &publisher{writer: w, logger: logger}
+	return &publisher{writer: NewKafkaWriter(addr), logger: logger}
 }
 
 // PublishUserRegistered 具体发送用户注册事件的方法

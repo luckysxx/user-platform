@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/luckysxx/user-platform/internal/ent/app"
+	"github.com/luckysxx/user-platform/internal/ent/eventoutbox"
 	"github.com/luckysxx/user-platform/internal/ent/user"
 	"github.com/luckysxx/user-platform/internal/ent/userappprofile"
 )
@@ -76,6 +77,7 @@ func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
 			app.Table:            app.ValidColumn,
+			eventoutbox.Table:    eventoutbox.ValidColumn,
 			user.Table:           user.ValidColumn,
 			userappprofile.Table: userappprofile.ValidColumn,
 		})

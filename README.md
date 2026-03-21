@@ -1,257 +1,159 @@
-# user-platform
+# User Platform 🏗️
 
-一个基于 Go 的 User 中台服务，提供统一账号注册、按应用登录签发 Token、Token 刷新能力，同时暴露 HTTP 和 gRPC 两种协议。
+Go 微服务中台，提供统一账号注册、多应用登录鉴权、Session 管理，同时暴露 HTTP 和 gRPC 两种协议。
 
-## 功能特性
+## 核心特性
 
-- 用户注册（邮箱 + 用户名 + 密码）
-- 用户登录（携带 app_code，签发 Access Token + Refresh Token）
-- Refresh Token 轮换刷新
-- 统一账号体系（所有应用共用一套账号密码，首次登录应用自动建立授权关系）
-- HTTP API（Gin）
-- gRPC API（grpc-go）
-- PostgreSQL（Ent）持久化
-- Redis（Refresh Token 存储）
-- Docker Compose 一键启动（基础设施 + 服务）
+- **账号体系**：邮箱注册、密码加密、用户名唯一约束
+- **多应用鉴权**：携带 `app_code` 登录，签发 Access Token + Refresh Token，首次登录自动建立授权关系
+- **Session 管理**：设备级 Session 追踪、登出、Token 轮换刷新
+- **事件驱动**：Transactional Outbox 模式保证注册事件可靠投递至 Kafka
+- **异步 Worker**：OutboxWorker 后台轮询 pending 事件，自动投递 Kafka 并更新状态
+- **双协议**：HTTP (Gin) + gRPC (grpc-go) 共享同一套 Service 层
 
 ## 技术栈
 
-- Go 1.25
-- Gin
-- gRPC + Protobuf
-- Ent ORM
-- PostgreSQL
-- Redis
-- Zap 日志
-- Docker / Docker Compose
+| 层 | 技术 |
+|---|------|
+| Web 框架 | Gin (HTTP) / grpc-go (gRPC) |
+| ORM | Ent |
+| 数据库 | PostgreSQL |
+| 缓存 | Redis |
+| 消息队列 | Kafka (segmentio/kafka-go) |
+| 配置 | Viper + godotenv |
+| 日志 | Zap (结构化 + 彩色) |
+| ID 生成 | 远程 Snowflake (gRPC) |
+| 容器化 | Docker + Docker Compose |
+| 可观测 | Prometheus + Grafana + Loki |
 
-## 项目结构（核心）
+## 项目结构
 
-- cmd/http: HTTP 服务入口
-- cmd/grpc: gRPC 服务入口
-- internal/service: 业务逻辑
-- internal/repository: 数据访问
-- internal/transport/http: HTTP 路由与 Handler
-- internal/transport/grpc: gRPC Server
-- internal/platform/config: 配置加载
-- proto/user: gRPC 协议定义
+```text
+├── cmd/
+│   ├── http/main.go              # HTTP 入口（含 OutboxWorker）
+│   └── grpc/main.go              # gRPC 入口
+├── internal/
+│   ├── service/                   # 业务逻辑（注册、登录、鉴权）
+│   ├── repository/                # 数据访问（User、Session、EventOutbox）
+│   ├── transport/
+│   │   ├── http/                  # Gin 路由 + Handler
+│   │   └── grpc/                  # gRPC Server 实现
+│   ├── worker/outbox_worker.go    # Outbox 异步投递 Worker
+│   ├── event/kafka.go             # Kafka 生产者
+│   ├── ent/                       # Ent 生成代码 + Schema
+│   └── platform/
+│       ├── config/                # Viper 配置加载
+│       ├── database/              # PostgreSQL 初始化
+│       └── cache/                 # Redis 初始化
+├── configs/config.yaml            # 非敏感配置骨架
+├── .env                           # 敏感凭证（不提交，见 .env.example）
+└── docker-compose-service.yaml    # 服务编排
+```
 
 ## 快速开始
 
-### 1. 环境准备
-
-- Go >= 1.25
-- Docker + Docker Compose
-- protoc（如果需要重新生成 protobuf）
-
-### 2. 配置环境变量
-
-复制配置文件：
-
+### 1. 配置环境变量
+```bash
 cp .env.example .env
-
-建议将 .env 中数据库连接改为：
-
-DB_SOURCE=postgres://luckys:123456@localhost:5432/user_platform?sslmode=disable
-
-默认常用配置项：
-
-- APP_ENV=development（production 下默认关闭自动 migration）
-- SERVER_PORT=8081
-- USER_GRPC_PORT=9091（仅 gRPC 入口读取）
-- DB_AUTO_MIGRATE=true（可一键切换为 false）
-- REDIS_ADDR=localhost:6379
-- REDIS_PASSWORD=123456
-- JWT_SECRET=自定义强随机密钥
-
-### 3. 启动基础设施（本地开发）
-
-make local-infra-up
-
-这会启动：
-
-- PostgreSQL（5432）
-- Redis（6379）
-
-### 4. 启动服务
-
-启动 HTTP：
-
-make local-run-http
-
-启动 gRPC：
-
-make local-run-grpc
-
-也可以一键启动全部容器（基础设施 + 服务）：
-
-make docker-up
-
-停止：
-
-make docker-down
-
-## Docker 运行
-
-本项目使用两个编排文件：
-
-- `docker-compose-infra.yaml`：PostgreSQL、Redis、Prometheus、Grafana、Loki、Promtail
-- `docker-compose-service.yaml`：user-http、user-grpc
-
-推荐直接使用 Make 命令（已封装网络和双 compose 文件）：
-
-```bash
-make docker-up
-make docker-logs
-make docker-down
+# 编辑 .env，填入数据库连接、Redis 密码、JWT 密钥
 ```
 
-如需手动执行：
-
+### 2. 启动基础设施
 ```bash
-docker compose -f docker-compose-infra.yaml -f docker-compose-service.yaml up -d --build
-docker compose -f docker-compose-infra.yaml -f docker-compose-service.yaml down
+make local-infra-up   # 启动 PostgreSQL + Redis + Kafka
 ```
 
-一键切换迁移策略（容器环境）：
-
+### 3. 本地运行
 ```bash
-# 开发模式（默认）：自动迁移
-APP_ENV=development DB_AUTO_MIGRATE=true make docker-up
-
-# 生产模式：关闭自动迁移
-APP_ENV=production DB_AUTO_MIGRATE=false make docker-up
+make local-run-http   # HTTP 服务 :8081
+make local-run-grpc   # gRPC 服务 :9091
 ```
+
+### 4. Docker 一键部署
+```bash
+make docker-up        # 构建并启动全部容器
+make docker-logs      # 查看日志
+make docker-down      # 停止并清理
+```
+
+## 配置说明
+
+### config.yaml（非敏感，提交到 Git）
+| 字段 | 说明 | 示例 |
+|------|------|------|
+| `server.port` | HTTP 端口 | `8081` |
+| `grpc_server.port` | gRPC 端口 | `9091` |
+| `kafka.brokers` | Kafka 地址 | `global-kafka:9092` |
+| `id_generator.addr` | 发号器 gRPC 地址 | `id-generator:50059` |
+
+### .env（敏感，不提交）
+| 变量 | 说明 |
+|------|------|
+| `APP_ENV` | 运行环境，影响日志颜色 |
+| `DATABASE_SOURCE` | PostgreSQL 连接字符串 |
+| `REDIS_PASSWORD` | Redis 密码 |
+| `JWT_SECRET` | JWT 签名密钥 |
 
 ## HTTP API
 
-Base URL:
-
-<http://localhost:8081/api/v1>
-
-接口列表：
-
-- POST /users/register
-- POST /users/login
-- POST /users/refresh
-
-### 注册示例
+Base URL: `http://localhost:8081/api/v1`
 
 ```bash
-curl -X POST 'http://localhost:8081/api/v1/users/register' \
+# 注册
+curl -X POST localhost:8081/api/v1/users/register \
   -H 'Content-Type: application/json' \
-  -d '{
-    "email": "alice@example.com",
-    "username": "alice123",
-    "password": "Password123"
-  }'
-```
+  -d '{"email":"alice@example.com","username":"alice123","password":"Password123"}'
 
-### 登录示例
-
-```bash
-curl -X POST 'http://localhost:8081/api/v1/users/login' \
+# 登录
+curl -X POST localhost:8081/api/v1/users/login \
   -H 'Content-Type: application/json' \
-  -d '{
-    "username": "alice123",
-    "password": "Password123",
-    "app_code": "tomato_novel"
-  }'
-```
+  -d '{"username":"alice123","password":"Password123","app_code":"tomato_novel"}'
 
-### 刷新 Token 示例
-
-```bash
-curl -X POST 'http://localhost:8081/api/v1/users/refresh' \
+# 刷新 Token
+curl -X POST localhost:8081/api/v1/users/refresh \
   -H 'Content-Type: application/json' \
-  -d '{
-    "token": "<refresh_token>"
-  }'
+  -d '{"token":"<refresh_token>"}'
+
+# 登出
+curl -X POST localhost:8081/api/v1/users/logout \
+  -H 'Content-Type: application/json' \
+  -d '{"token":"<refresh_token>"}'
 ```
-
-### 响应格式
-
-成功响应：
-
-{
-  "code": 200,
-  "msg": "success",
-  "data": { ... }
-}
-
-业务错误通常也是 HTTP 200，具体失败码在 body.code 中。
 
 ## gRPC API
 
-地址：
-
-`localhost:9091`
-
-服务定义：
-
-- user.UserService/Register
-- user.AuthService/Login
-- user.AuthService/RefreshToken
-
-使用 grpcurl 示例（明文）：
+地址：`localhost:9091`
 
 ```bash
+# 注册
 grpcurl -plaintext -d '{"email":"alice@example.com","username":"alice123","password":"Password123"}' \
   localhost:9091 user.UserService/Register
 
+# 登录
 grpcurl -plaintext -d '{"username":"alice123","password":"Password123","app_code":"tomato_novel"}' \
   localhost:9091 user.AuthService/Login
-
-grpcurl -plaintext -d '{"token":"<refresh_token>"}' \
-  localhost:9091 user.AuthService/RefreshToken
 ```
+
+## 架构亮点
+
+### Transactional Outbox 模式
+注册时在同一个数据库事务中写入 `users` 表和 `event_outboxes` 表，OutboxWorker 后台轮询 pending 事件投递 Kafka，保证数据一致性。
+
+### Bootstrap 三段式入口
+`main.go` 采用 `initInfra` → `buildRouter` → `runServer` 三段式组织，基础设施初始化、依赖注入、服务启动职责清晰分离。
 
 ## 常用 Make 命令
 
-- make local-infra-up: 启动 postgres + redis
-- make local-infra-down: 停止 postgres + redis
-- make local-run-http: 本地启动 HTTP
-- make local-run-grpc: 本地启动 gRPC
-- make local-test: 运行测试
-- make proto-gen: 生成 protobuf 代码
-- make docker-up: 启动全部容器
-- make docker-down: 停止并清理容器
-- make docker-logs: 查看服务日志
-- make health: 查看健康状态
-
-## 数据库说明
-
-当前服务支持 Ent Schema 自动迁移：
-
-- `APP_ENV=development` 时，默认自动执行 migration。
-- `APP_ENV=production` 时，默认关闭自动 migration。
-- 也可通过 `DB_AUTO_MIGRATE=true/false` 强制覆盖，做到一键切换。
-
-如果关闭自动 migration，启动前请先确保至少存在 users、apps、user_app_profiles 三张表，并预置可用 app_code。
-
-可参考最小 users 建表 SQL：
-
-CREATE TABLE IF NOT EXISTS users (
-  id BIGINT PRIMARY KEY,
-  email VARCHAR(255) UNIQUE NOT NULL,
-  username VARCHAR(32) UNIQUE NOT NULL,
-  password TEXT NOT NULL,
-  status VARCHAR(16) NOT NULL DEFAULT 'active',
-  created_at TIMESTAMP NOT NULL,
-  updated_at TIMESTAMP NOT NULL
-);
-
-## 可观测组件（Docker）
-
-基础设施编排中包含：
-
-- Prometheus: <http://localhost:9090>
-- Grafana: <http://localhost:3000>（默认账号/密码见 docker-compose-infra.yaml）
-- Loki: <http://localhost:3100>
-
-## 已知注意项
-
-- 登录请求中的 app_code 必须是已存在的应用编码，否则会返回参数错误（app not found）。
+| 命令 | 说明 |
+|------|------|
+| `make local-infra-up` | 启动本地基础设施 |
+| `make local-run-http` | 本地启动 HTTP |
+| `make local-run-grpc` | 本地启动 gRPC |
+| `make docker-up` | Docker 一键部署 |
+| `make docker-down` | 停止并清理容器 |
+| `make docker-logs` | 查看服务日志 |
+| `make proto-gen` | 重新生成 Protobuf |
+| `make health` | 健康检查 |
 
 ## License
 

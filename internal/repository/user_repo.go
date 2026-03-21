@@ -31,7 +31,22 @@ func (r *userRepository) Create(ctx context.Context, email string, username stri
 		return nil, fmt.Errorf("生成 Snowflake ID 失败: %w", err)
 	}
 
-	// 2. 将雪花 ID 显式注入实体
+	// 检查是否在事务中
+	tx := ent.TxFromContext(ctx)
+	// 如果在事务中, 使用事务
+	if tx != nil {
+		u, err := tx.User.Create().
+			SetID(newID).
+			SetEmail(email).
+			SetUsername(username).
+			SetPassword(passwordhash).
+			Save(ctx)
+		if err != nil {
+			return nil, dberr.ParseDBError(err)
+		}
+		return u, nil
+	}
+	// 没有事务, 使用普通单表落库
 	u, err := r.client.User.Create().
 		SetID(newID).
 		SetEmail(email).

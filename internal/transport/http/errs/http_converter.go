@@ -23,8 +23,6 @@ func ConvertToCustomError(err error) *pkgerrs.CustomError {
 		return pkgerrs.NewParamErr("用户名已存在", err)
 	case errors.Is(err, dberr.ErrEmailDuplicate):
 		return pkgerrs.NewParamErr("邮箱已存在", err)
-	case errors.Is(err, dberr.ErrShortLinkDuplicate):
-		return pkgerrs.NewParamErr("短链接已存在", err)
 	case errors.Is(err, dberr.ErrDuplicateKey):
 		return pkgerrs.NewParamErr("记录已存在", err)
 	case errors.Is(err, dberr.ErrNoRows):

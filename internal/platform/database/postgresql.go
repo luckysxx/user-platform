@@ -5,6 +5,7 @@ import (
 
 	_ "github.com/lib/pq"
 	"github.com/luckysxx/user-platform/internal/ent"
+	"github.com/luckysxx/user-platform/internal/ent/migrate"
 	"github.com/luckysxx/user-platform/internal/platform/config"
 
 	"go.uber.org/zap"
@@ -19,7 +20,11 @@ func InitEntClient(cfg config.DatabaseConfig, log *zap.Logger) *ent.Client {
 	}
 
 	if cfg.AutoMigrate {
-		if err := client.Schema.Create(context.Background()); err != nil {
+		if err := client.Schema.Create(
+			context.Background(),
+			migrate.WithDropIndex(true),
+			migrate.WithDropColumn(true),
+		); err != nil {
 			log.Fatal("自动执行 Ent schema migration 失败", zap.Error(err))
 			return nil
 		}
@@ -31,3 +36,4 @@ func InitEntClient(cfg config.DatabaseConfig, log *zap.Logger) *ent.Client {
 	log.Info("成功初始化 Ent 客户端")
 	return client
 }
+

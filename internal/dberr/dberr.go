@@ -22,9 +22,6 @@ var (
 	// 用户相关错误
 	ErrUsernameDuplicate = errors.New("用户名已存在")
 	ErrEmailDuplicate    = errors.New("邮箱已存在")
-
-	// 粘贴相关错误
-	ErrShortLinkDuplicate = errors.New("短链接已存在")
 )
 
 // ParseDBError 解析数据库错误并转换为业务错误
@@ -73,8 +70,6 @@ func parseEntConstraintError(err error) error {
 		return ErrUsernameDuplicate
 	case strings.Contains(msg, "users_email_key"):
 		return ErrEmailDuplicate
-	case strings.Contains(msg, "pastes_short_link_key"):
-		return ErrShortLinkDuplicate
 	case strings.Contains(msg, "duplicate key") || strings.Contains(msg, "unique constraint") || strings.Contains(msg, "already exists"):
 		return ErrDuplicateKey
 	case strings.Contains(msg, "foreign key"):
@@ -96,8 +91,7 @@ func IsDuplicateKeyError(err error) bool {
 
 	if errors.Is(err, ErrDuplicateKey) ||
 		errors.Is(err, ErrUsernameDuplicate) ||
-		errors.Is(err, ErrEmailDuplicate) ||
-		errors.Is(err, ErrShortLinkDuplicate) {
+		errors.Is(err, ErrEmailDuplicate) {
 		return true
 	}
 
