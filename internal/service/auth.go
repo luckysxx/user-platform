@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
+
+	"golang.org/x/sync/singleflight"
 
 	"github.com/google/uuid"
 	"github.com/luckysxx/common/crypto"
@@ -16,7 +19,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// 将错误定义移回所属的域，并统一升级为领域模型错误
 var (
 	ErrInvalidCredentials   = pkgerrs.NewParamErr("用户名或密码错误", nil)
 	ErrTokenGeneration      = pkgerrs.NewServerErr(errors.New("生成 Token 失败"))
@@ -33,12 +35,13 @@ type AuthService interface {
 }
 
 type authService struct {
-	repo       repository.UserRepository
-	appRepo    repository.AppRepository
-	session    repository.SessionRepository
-	jwtManager *auth.JWTManager
-	limiter    ratelimiter.Limiter
-	logger     *zap.Logger
+	repo         repository.UserRepository
+	appRepo      repository.AppRepository
+	session      repository.SessionRepository
+	jwtManager   *auth.JWTManager
+	limiter      ratelimiter.Limiter
+	logger       *zap.Logger
+	requestGroup *singleflight.Group
 }
 
 func NewAuthService(
@@ -50,12 +53,13 @@ func NewAuthService(
 	logger *zap.Logger,
 ) AuthService {
 	return &authService{
-		repo:       repo,
-		appRepo:    appRepo,
-		session:    session,
-		jwtManager: jwtManager,
-		limiter:    limiter,
-		logger:     logger,
+		repo:         repo,
+		appRepo:      appRepo,
+		session:      session,
+		jwtManager:   jwtManager,
+		limiter:      limiter,
+		logger:       logger,
+		requestGroup: &singleflight.Group{},
 	}
 }
 
@@ -101,8 +105,8 @@ func (s *authService) Login(ctx context.Context, req *servicecontract.LoginComma
 func (s *authService) VerifyToken(ctx context.Context, req *servicecontract.VerifyTokenCommand) (*servicecontract.VerifyTokenResult, error) {
 	claims, err := s.jwtManager.VerifyToken(req.Token)
 	if err != nil {
-		// 验签失败属于常规情况（如过期），包装返回由最外层决定记录级别即可
-		return nil, fmt.Errorf("Token验证失败: %w", err)
+		// 验签失败属于常规情况（如过期），返回 Unauthorized 错误
+		return nil, pkgerrs.New(pkgerrs.Unauthorized, "无效的访问凭证或已过期", err)
 	}
 	return &servicecontract.VerifyTokenResult{
 		UserID:   claims.UserID,
@@ -111,37 +115,73 @@ func (s *authService) VerifyToken(ctx context.Context, req *servicecontract.Veri
 }
 
 func (s *authService) RefreshToken(ctx context.Context, req *servicecontract.RefreshTokenCommand) (*servicecontract.RefreshTokenResult, error) {
-	// 1. 底层解析验证 Hash mapping 完全解耦：查验并获取 UserID
-	userID, deviceID, err := s.session.GetSessionByToken(ctx, req.Token)
+	// 先查 Redis 极速通道（是否有 grace period 保护）
+	if result, found := s.session.CheckGracePeriod(ctx, req.Token); found {
+		return result, nil
+	}
+
+	// 使用 Singleflight 避免同一台机器上的重复击穿
+	v, err, _ := s.requestGroup.Do(req.Token, func() (interface{}, error) {
+		// key 使用旧 Token，因为我们要查的就是旧 Token 对应的用户
+		lockKey := fmt.Sprintf("lock:refresh:%s", req.Token)
+
+		//尝试获取锁
+		locked, err := s.session.TryLock(ctx, lockKey, 5*time.Second)
+		if err == nil && locked {
+			defer s.session.UnLock(ctx, lockKey)
+
+			// 先获取旧 Token 的关联信息（userID, deviceID）
+			userID, deviceID, sessionErr := s.session.GetSessionByToken(ctx, req.Token)
+			if sessionErr != nil {
+				// 极端情况：刚好别人在我抢锁前0.01秒把它干掉了并存入了 Grace 表里
+				if graceRes, ok := s.session.CheckGracePeriod(ctx, req.Token); ok {
+					return graceRes, nil
+				}
+				return nil, sessionErr // 真找不到了，直接抛出，这是伪造的 Token
+			}
+
+			// 验证设备 Token
+			if err := s.session.ValidateDeviceToken(ctx, userID, deviceID, req.Token); err != nil {
+				return nil, err
+			}
+
+			// 轮换自毁：删掉旧的逆向索引
+			s.session.DeleteTokenIndex(ctx, req.Token)
+
+			// 去数据库查一下该用户的最新状态（获取最新的 username，并拦截被封禁的用户）
+			user, err := s.repo.GetByID(ctx, userID)
+			if err != nil {
+				return nil, fmt.Errorf("试图刷新Token但用户(uid:%d)不存在: %w", userID, ErrAccountAbnormal)
+			}
+
+			// 重新签发一套全新的 Access Token 和 Refresh Token 给相同的 deviceID
+			result, err := s.issueTokens(ctx, user.ID, user.Username, deviceID)
+			if err != nil {
+				return nil, err
+			}
+
+			// 映射为 RefreshToken 的专属返回结构
+			res := &servicecontract.RefreshTokenResult{
+				AccessToken:  result.AccessToken,
+				RefreshToken: result.RefreshToken,
+			}
+
+			// 将新颁发的 Token 存入 Grace Period，这样并发的请求能够拿到新 Token
+			s.session.SaveGracePeriod(ctx, req.Token, *res, 15*time.Second)
+			return res, nil
+		}
+		// 锁被占用
+		time.Sleep(200 * time.Millisecond)
+		if graceRes, ok := s.session.CheckGracePeriod(ctx, req.Token); ok {
+			return graceRes, nil
+		}
+		// 超过 200ms 还没轮到，直接判定为无效
+		return nil, ErrInvalidCredentials
+	})
 	if err != nil {
 		return nil, err
 	}
-
-	// 2. 验证 Hash 表中该设备的 Token 也对得上
-	if err := s.session.ValidateDeviceToken(ctx, userID, deviceID, req.Token); err != nil {
-		return nil, err
-	}
-
-	// 3. 轮换自毁：删掉旧的逆向索引
-	s.session.DeleteTokenIndex(ctx, req.Token)
-
-	// 4. 去数据库查一下该用户的最新状态（获取最新的 username，并拦截被封禁的用户）
-	user, err := s.repo.GetByID(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("试图刷新Token但用户(uid:%d)不存在: %w", userID, ErrAccountAbnormal)
-	}
-
-	// 5. 重新签发一套全新的 Access Token 和 Refresh Token 给相同的 deviceID
-	result, err := s.issueTokens(ctx, user.ID, user.Username, deviceID)
-	if err != nil {
-		return nil, err
-	}
-
-	// 5. 映射为 RefreshToken 的专属返回结构
-	return &servicecontract.RefreshTokenResult{
-		AccessToken:  result.AccessToken,
-		RefreshToken: result.RefreshToken,
-	}, nil
+	return v.(*servicecontract.RefreshTokenResult), nil
 }
 
 // 内部方法：统一处理双 Token 的签发与 Redis 设备级存储

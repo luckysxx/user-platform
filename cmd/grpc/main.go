@@ -23,6 +23,7 @@ import (
 	"github.com/luckysxx/user-platform/internal/repository"
 	"github.com/luckysxx/user-platform/internal/service"
 	usergrpcserver "github.com/luckysxx/user-platform/internal/transport/grpc/server"
+	"github.com/luckysxx/user-platform/internal/transport/grpc/interceptor"
 
 	"go.uber.org/zap"
 )
@@ -75,7 +76,13 @@ func buildServer(cfg *config.Config, entClient *ent.Client, redisClient *redis.C
 	authSvc := service.NewAuthService(userRepo, appRepo, sessionRepo, jwtManager, rateLim, log)
 
 	// GRPC Handlers
-	s := grpc.NewServer()
+	s := grpc.NewServer(
+		grpc.ChainUnaryInterceptor(
+			interceptor.RecoveryInterceptor(log),
+			interceptor.LoggerInterceptor(log),
+			interceptor.AuthInterceptor(jwtManager),
+		),
+	)
 	user_pb.RegisterUserServiceServer(s, usergrpcserver.NewUserServer(userSvc, log))
 	auth_pb.RegisterAuthServiceServer(s, usergrpcserver.NewAuthServer(authSvc, log))
 

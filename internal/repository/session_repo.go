@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/luckysxx/user-platform/internal/auth"
+	"github.com/luckysxx/user-platform/internal/service/contract"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -20,6 +21,10 @@ type SessionRepository interface {
 	ValidateDeviceToken(ctx context.Context, userID int64, deviceID string, candidateToken string) error
 	DeleteTokenIndex(ctx context.Context, refreshToken string) error
 	DeleteDeviceSession(ctx context.Context, userID int64, deviceID string) (oldToken string, err error)
+	TryLock(ctx context.Context, key string, expiration time.Duration) (bool, error)
+	UnLock(ctx context.Context, key string) error
+	SaveGracePeriod(ctx context.Context, oldToken string, newToken contract.RefreshTokenResult, duration time.Duration) error
+	CheckGracePeriod(ctx context.Context, oldToken string) (*contract.RefreshTokenResult, bool)
 }
 
 type redisSessionRepo struct {
@@ -95,4 +100,35 @@ func (r *redisSessionRepo) DeleteDeviceSession(ctx context.Context, userID int64
 	}
 
 	return oldToken, nil
+}
+
+func (r *redisSessionRepo) TryLock(ctx context.Context, key string, expiration time.Duration) (bool, error) {
+	return r.cli.SetNX(ctx, key, "locked", expiration).Result()
+}
+
+func (r *redisSessionRepo) UnLock(ctx context.Context, key string) error {
+	return r.cli.Del(ctx, key).Err()
+}
+
+func (r *redisSessionRepo) SaveGracePeriod(ctx context.Context, oldToken string, newToken contract.RefreshTokenResult, duration time.Duration) error {
+	// Redis 原生不支持直接存 Go Struct，需要拼成字符串或者 JSON。最快的方法是用管道符拼接：
+	val := fmt.Sprintf("%s|%s", newToken.AccessToken, newToken.RefreshToken)
+	return r.cli.Set(ctx, fmt.Sprintf("grace_period:%s", oldToken), val, duration).Err()
+}
+
+func (r *redisSessionRepo) CheckGracePeriod(ctx context.Context, oldToken string) (*contract.RefreshTokenResult, bool) {
+	val, err := r.cli.Get(ctx, fmt.Sprintf("grace_period:%s", oldToken)).Result()
+	if err != nil {
+		return nil, false
+	}
+	
+	// 把之前存进去的字符串重新拆成结构体
+	parts := strings.Split(val, "|")
+	if len(parts) == 2 {
+		return &contract.RefreshTokenResult{
+			AccessToken:  parts[0],
+			RefreshToken: parts[1],
+		}, true
+	}
+	return nil, false
 }

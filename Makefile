@@ -1,7 +1,7 @@
 .PHONY: init-networks local-run local-run-http local-run-grpc local-test proto-gen docker-up docker-down docker-logs ps health fe-install fe-dev fe-build fe-lint fe-type-check fe-preview
 
 NETWORK_EXTERNAL = go-net
-COMPOSE_FILES = -f docker-compose-service.yaml
+COMPOSE_FILES = -f docker-compose.yaml
 FRONTEND_DIR = view
 
 init-networks:
@@ -9,7 +9,6 @@ init-networks:
 
 local-run:
 	go run ./cmd/http
-
 local-run-http:
 	go run ./cmd/http
 

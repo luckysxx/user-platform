@@ -1,5 +1,6 @@
 services:
   user-http:
+    container_name: user-http
     build:
       context: .
       dockerfile: Dockerfile.http
@@ -25,6 +26,7 @@ services:
     restart: unless-stopped
 
   user-grpc:
+    container_name: user-grpc
     build:
       context: .
       dockerfile: Dockerfile.grpc

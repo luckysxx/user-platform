@@ -8,6 +8,7 @@ import (
 	"github.com/luckysxx/user-platform/internal/service"
 	servicecontract "github.com/luckysxx/user-platform/internal/service/contract"
 	grpcerrs "github.com/luckysxx/user-platform/internal/transport/grpc/errs"
+	"github.com/luckysxx/user-platform/internal/transport/grpc/interceptor"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -62,7 +63,33 @@ func (s *AuthServer) RefreshToken(ctx context.Context, req *pb.RefreshTokenReque
 }
 
 func (s *AuthServer) Logout(ctx context.Context, req *pb.LogoutRequest) (*pb.LogoutResponse, error) {
-	// TODO: 目前尚未实现全局 gRPC Interceptor 以解析 JWT 获取 UserID。
-	// 这里暂时屏蔽 gRPC 的登出实现，前端如果走 WebSocket+gRPC 需要在网关层或引入 Interceptor 处理鉴权。
-	return nil, status.Error(codes.Unimplemented, "Logout via gRPC requires Auth Interceptor which is pending")
+	userID, err := interceptor.UserIDFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.avc.Logout(ctx, &servicecontract.LogoutCommand{
+		UserID: userID,
+	})
+	if err != nil {
+		return nil, grpcerrs.ToGRPCError(err)
+	}
+
+	return &pb.LogoutResponse{}, nil
+}
+
+func (s *AuthServer) VerifyToken(ctx context.Context, req *pb.VerifyTokenRequest) (*pb.VerifyTokenResponse, error) {
+	if strings.TrimSpace(req.GetToken()) == "" {
+		return nil, status.Error(codes.InvalidArgument, "token is required")
+	}
+
+	resp, err := s.avc.VerifyToken(ctx, &servicecontract.VerifyTokenCommand{Token: req.GetToken()})
+	if err != nil {
+		return nil, grpcerrs.ToGRPCError(err)
+	}
+
+	return &pb.VerifyTokenResponse{
+		UserId:   resp.UserID,
+		Username: resp.Username,
+	}, nil
 }
