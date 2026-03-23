@@ -5,6 +5,7 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/schema/field"
+	"entgo.io/ent/schema/index"
 )
 
 type EventOutbox struct {
@@ -39,4 +40,11 @@ func (EventOutbox) Fields() []ent.Field {
 
 func (EventOutbox) Edges() []ent.Edge {
 	return []ent.Edge{}
+}
+
+func (EventOutbox) Indexes() []ent.Index {
+	return []ent.Index{
+		index.Fields("status", "retry_count"),
+		index.Fields("status", "updated_at"),
+	}
 }

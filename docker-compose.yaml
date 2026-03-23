@@ -14,6 +14,7 @@ services:
       - REDIS_ADDR=global-redis:6379
       - JWT_SECRET=user_platform_secret_key
       - KAFKA_BROKERS=global-kafka:9092
+      - KAFKA_TOPIC_USER_REGISTERED=user.registered
       - ID_GENERATOR_ADDR=id-generator:50059
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8081/health"]
@@ -35,11 +36,12 @@ services:
     environment:
       - APP_ENV=${APP_ENV:-development}
       - USER_GRPC_PORT=9091
-      - DATABASE_AUTO_MIGRATE=${DB_AUTO_MIGRATE:-true}
+      - DATABASE_AUTO_MIGRATE=false
       - DATABASE_SOURCE=postgres://luckys:123456@global-postgres:5432/user_platform?sslmode=disable
       - REDIS_ADDR=global-redis:6379
       - JWT_SECRET=user_platform_secret_key
       - KAFKA_BROKERS=global-kafka:9092
+      - KAFKA_TOPIC_USER_REGISTERED=user.registered
       - ID_GENERATOR_ADDR=id-generator:50059
     networks:
       - go-net

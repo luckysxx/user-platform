@@ -47,13 +47,13 @@ func main() {
 	defer kafkaWriter.Close()
 
 	// 2. 依赖注入与组件装配
-	publisher := event.NewKafkaPublisher(cfg.Kafka.Brokers, log)
+	publisher := event.NewKafkaPublisher(cfg.Kafka.Brokers, cfg.Kafka.TopicUserRegistered, log)
 	defer publisher.Close()
 	router := buildRouter(cfg, entClient, redisClient, publisher, log)
 
 	// 3. 启动 OutboxWorker（异步补偿发件箱）
-	outboxRepo := repository.NewEventOutboxRepository(entClient)
-	outboxWorker := worker.NewOutboxWorker(outboxRepo, kafkaWriter, log)
+	outboxRepo := repository.NewEventOutboxRepository(entClient, redisClient)
+	outboxWorker := worker.NewOutboxWorker(outboxRepo, kafkaWriter, redisClient, log)
 
 	// 4. 阻塞运行与优雅停机
 	runServer(router, outboxWorker, cfg.Server.Port, log)
@@ -81,7 +81,7 @@ func initInfra(cfg *config.Config, log *zap.Logger) (*ent.Client, *redis.Client,
 func buildRouter(cfg *config.Config, entClient *ent.Client, redisClient *redis.Client, publisher event.Publisher, log *zap.Logger) *gin.Engine {
 	// Repositories
 	userRepo := repository.NewUserRepository(entClient)
-	outboxRepo := repository.NewEventOutboxRepository(entClient)
+	outboxRepo := repository.NewEventOutboxRepository(entClient, redisClient)
 	tm := repository.NewTransactionManager(entClient)
 	sessionRepo := repository.NewRedisSessionRepo(redisClient)
 	appRepo := repository.NewAppRepository(entClient)
@@ -89,7 +89,7 @@ func buildRouter(cfg *config.Config, entClient *ent.Client, redisClient *redis.C
 	// Domain Services
 	jwtManager := auth.NewJWTManager(cfg.JWT.Secret)
 	rateLim := ratelimiter.NewRedisLimiter(redisClient, log)
-	userSvc := service.NewUserService(tm, userRepo, outboxRepo, publisher, log)
+	userSvc := service.NewUserService(tm, userRepo, outboxRepo, publisher, log, cfg.Kafka.TopicUserRegistered)
 	authSvc := service.NewAuthService(userRepo, appRepo, sessionRepo, jwtManager, rateLim, log)
 
 	// Transport

@@ -35,6 +35,18 @@ var (
 		Name:       "event_outboxes",
 		Columns:    EventOutboxesColumns,
 		PrimaryKey: []*schema.Column{EventOutboxesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "eventoutbox_status_retry_count",
+				Unique:  false,
+				Columns: []*schema.Column{EventOutboxesColumns[3], EventOutboxesColumns[4]},
+			},
+			{
+				Name:    "eventoutbox_status_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{EventOutboxesColumns[3], EventOutboxesColumns[6]},
+			},
+		},
 	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{

@@ -22,6 +22,7 @@ type userService struct {
 	outboxRepo repository.EventOutboxRepository
 	Publisher  event.Publisher
 	logger     *zap.Logger
+	topicUserRegistered string
 }
 
 func NewUserService(
@@ -30,6 +31,7 @@ func NewUserService(
 	outboxRepo repository.EventOutboxRepository,
 	publisher event.Publisher,
 	logger *zap.Logger,
+	topicUserRegistered string,
 ) UserService {
 	return &userService{
 		tm:         tm,
@@ -37,6 +39,7 @@ func NewUserService(
 		outboxRepo: outboxRepo,
 		Publisher:  publisher,
 		logger:     logger,
+		topicUserRegistered: topicUserRegistered,
 	}
 }
 
@@ -70,7 +73,7 @@ func (s *userService) Register(ctx context.Context, req *servicecontract.Registe
 			user.Username,
 		))
 
-		err = s.outboxRepo.SaveEvent(txCtx, "UserRegistered", eventPayload)
+		err = s.outboxRepo.SaveEvent(txCtx, s.topicUserRegistered, eventPayload)
 		if err != nil {
 			return fmt.Errorf("创建用户事件失败: %w", err)
 		}
@@ -81,6 +84,9 @@ func (s *userService) Register(ctx context.Context, req *servicecontract.Registe
 	if err != nil {
 		return nil, err
 	}
+
+	// 事务提交成功后，向 Redis 发送唤醒信号
+	_ = s.outboxRepo.Notify(context.WithoutCancel(ctx))
 
 	return resp, nil
 }

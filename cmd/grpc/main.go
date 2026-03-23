@@ -59,7 +59,7 @@ func initInfra(cfg *config.Config, log *zap.Logger) (*ent.Client, *redis.Client,
 		Password: cfg.Redis.Password,
 		DB:       cfg.Redis.DB,
 	}, log)
-	publisher := event.NewKafkaPublisher(cfg.Kafka.Brokers, log)
+	publisher := event.NewKafkaPublisher(cfg.Kafka.Brokers, cfg.Kafka.TopicUserRegistered, log)
 
 	return entClient, redisClient, publisher
 }
@@ -68,7 +68,7 @@ func initInfra(cfg *config.Config, log *zap.Logger) (*ent.Client, *redis.Client,
 func buildServer(cfg *config.Config, entClient *ent.Client, redisClient *redis.Client, publisher event.Publisher, log *zap.Logger) *grpc.Server {
 	// Repositories
 	userRepo := repository.NewUserRepository(entClient)
-	outboxRepo := repository.NewEventOutboxRepository(entClient)
+	outboxRepo := repository.NewEventOutboxRepository(entClient, redisClient)
 	tm := repository.NewTransactionManager(entClient)
 	sessionRepo := repository.NewRedisSessionRepo(redisClient)
 	appRepo := repository.NewAppRepository(entClient)
@@ -76,7 +76,7 @@ func buildServer(cfg *config.Config, entClient *ent.Client, redisClient *redis.C
 	// Domain Services
 	jwtManager := auth.NewJWTManager(cfg.JWT.Secret)
 	rateLim := ratelimiter.NewRedisLimiter(redisClient, log)
-	userSvc := service.NewUserService(tm, userRepo, outboxRepo, publisher, log)
+	userSvc := service.NewUserService(tm, userRepo, outboxRepo, publisher, log, cfg.Kafka.TopicUserRegistered)
 	authSvc := service.NewAuthService(userRepo, appRepo, sessionRepo, jwtManager, rateLim, log)
 
 	// GRPC Handlers

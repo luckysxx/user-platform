@@ -28,6 +28,7 @@ type Publisher interface {
 type publisher struct {
 	logger *zap.Logger
 	writer *kafka.Writer
+	topic  string
 }
 
 // NewKafkaWriter 初始化底层 Kafka Writer（供 OutboxWorker 等组件共享）
@@ -40,8 +41,8 @@ func NewKafkaWriter(addr string) *kafka.Writer {
 }
 
 // NewKafkaPublisher 初始化 Kafka 生产者
-func NewKafkaPublisher(addr string, logger *zap.Logger) *publisher {
-	return &publisher{writer: NewKafkaWriter(addr), logger: logger}
+func NewKafkaPublisher(addr string, topic string, logger *zap.Logger) *publisher {
+	return &publisher{writer: NewKafkaWriter(addr), logger: logger, topic: topic}
 }
 
 // PublishUserRegistered 具体发送用户注册事件的方法
@@ -62,10 +63,10 @@ func (k *publisher) PublishUserRegistered(ctx context.Context, userID int64, ema
 
 	traceID := trace.FromContext(ctx)
 
-	// 2. 发送到 user.registered 频道
+	// 2. 发送到相应的频道
 	err = k.writer.WriteMessages(ctx,
 		kafka.Message{
-			Topic: "user.registered",
+			Topic: k.topic,
 			Key:   []byte(email),
 			Value: msgBytes,
 			Headers: []kafka.Header{
