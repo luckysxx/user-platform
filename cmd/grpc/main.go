@@ -10,6 +10,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/luckysxx/common/logger"
+	commonRedis "github.com/luckysxx/common/pkg/redis"
 	auth_pb "github.com/luckysxx/common/proto/auth"
 	user_pb "github.com/luckysxx/common/proto/user"
 	"github.com/luckysxx/common/ratelimiter"
@@ -19,7 +20,6 @@ import (
 	"github.com/luckysxx/user-platform/internal/event"
 	"github.com/luckysxx/user-platform/internal/platform/config"
 	"github.com/luckysxx/user-platform/internal/platform/database"
-	"github.com/luckysxx/user-platform/internal/cache"
 	"github.com/luckysxx/user-platform/internal/repository"
 	"github.com/luckysxx/user-platform/internal/service"
 	usergrpcserver "github.com/luckysxx/user-platform/internal/transport/grpc/server"
@@ -54,7 +54,11 @@ func initInfra(cfg *config.Config, log *zap.Logger) (*ent.Client, *redis.Client,
 	}
 
 	entClient := database.InitEntClient(cfg.Database, log)
-	redisClient := cache.InitRedis(cfg.Redis, log)
+	redisClient := commonRedis.Init(commonRedis.Config{
+		Addr:     cfg.Redis.Addr,
+		Password: cfg.Redis.Password,
+		DB:       cfg.Redis.DB,
+	}, log)
 	publisher := event.NewKafkaPublisher(cfg.Kafka.Brokers, log)
 
 	return entClient, redisClient, publisher

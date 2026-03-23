@@ -4,10 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/luckysxx/user-platform/internal/platform/config"
-
 	"github.com/redis/go-redis/v9"
-	"go.uber.org/zap"
 )
 
 // Cache 接口定义缓存操作
@@ -39,22 +36,3 @@ func (r *redisCache) Del(ctx context.Context, keys ...string) error {
 	return r.client.Del(ctx, keys...).Err()
 }
 
-// InitRedis 初始化 Redis 客户端
-func InitRedis(cfg config.RedisConfig, log *zap.Logger) *redis.Client {
-	client := redis.NewClient(&redis.Options{
-		Addr:     cfg.Addr,
-		Password: cfg.Password,
-		DB:       cfg.DB,
-	})
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if err := client.Ping(ctx).Err(); err != nil {
-		log.Fatal("无法连接到 Redis", zap.Error(err))
-		return nil
-	}
-
-	log.Info("成功连接到 Redis")
-	return client
-}

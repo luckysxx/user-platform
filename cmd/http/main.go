@@ -15,8 +15,8 @@ import (
 	"github.com/luckysxx/common/logger"
 	"github.com/luckysxx/common/ratelimiter"
 	"github.com/luckysxx/common/rpc"
+	commonRedis "github.com/luckysxx/common/pkg/redis"
 	"github.com/luckysxx/user-platform/internal/auth"
-	"github.com/luckysxx/user-platform/internal/cache"
 	"github.com/luckysxx/user-platform/internal/ent"
 	"github.com/luckysxx/user-platform/internal/event"
 	"github.com/luckysxx/user-platform/internal/platform/config"
@@ -66,7 +66,11 @@ func initInfra(cfg *config.Config, log *zap.Logger) (*ent.Client, *redis.Client,
 	}
 
 	entClient := database.InitEntClient(cfg.Database, log)
-	redisClient := cache.InitRedis(cfg.Redis, log)
+	redisClient := commonRedis.Init(commonRedis.Config{
+		Addr:     cfg.Redis.Addr,
+		Password: cfg.Redis.Password,
+		DB:       cfg.Redis.DB,
+	}, log)
 
 	kafkaWriter := event.NewKafkaWriter(cfg.Kafka.Brokers)
 
