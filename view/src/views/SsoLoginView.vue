@@ -5,7 +5,6 @@ import { useRoute } from 'vue-router'
 import { loginBySso } from '@/api/sso'
 
 const loginForm = reactive({
-  appCode: '',
   username: '',
   password: '',
 })
@@ -33,10 +32,10 @@ function isSafeRedirectUri(uri: string): boolean {
 
 const ssoContext = computed(() => {
   const clientId = getSingleQueryValue(route.query.client_id).trim()
-  const appCode = getSingleQueryValue(route.query.app_code).trim() || clientId
+  const appCode = getSingleQueryValue(route.query.app_code).trim() || clientId || 'user-platform'
   const redirectUri = getSingleQueryValue(route.query.redirect_uri).trim()
   const state = getSingleQueryValue(route.query.state).trim()
-  const effectiveAppCode = loginForm.appCode.trim() || appCode
+  const effectiveAppCode = appCode
 
   return {
     clientId,
@@ -95,10 +94,18 @@ const handleLogin = async () => {
   isSubmitting.value = true
 
   try {
+    // 生成或复用浏览器端的设备指纹，作为 device_id
+    let deviceId = localStorage.getItem('device_id')
+    if (!deviceId) {
+      deviceId = crypto.randomUUID()
+      localStorage.setItem('device_id', deviceId)
+    }
+
     const result = await loginBySso({
       username: loginForm.username,
       password: loginForm.password,
       app_code: ssoContext.value.effectiveAppCode,
+      device_id: deviceId,
     })
 
     successMessage.value = '登录成功'
@@ -155,15 +162,6 @@ const handleLogin = async () => {
         <p v-if="ssoContext.clientId" class="sso-app">接入应用：{{ ssoContext.clientId }}</p>
 
         <form class="auth-form" @submit.prevent="handleLogin">
-          <label class="form-item">
-            <input
-              v-model="loginForm.appCode"
-              type="text"
-              placeholder="应用编码（app_code）"
-              :readonly="Boolean(ssoContext.appCode)"
-            />
-          </label>
-
           <label class="form-item">
             <input v-model="loginForm.username" type="text" placeholder="用户名" required />
           </label>

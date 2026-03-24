@@ -29,9 +29,9 @@ func SetupRouter(r *gin.Engine, userHandler *handler.UserHandler, jwtManager *au
 			users.POST("/login", userHandler.Login)
 			users.POST("/refresh", userHandler.RefreshToken)
 
-			// 需要鉴权的接口组
+			// 需要鉴权接口组 (退化为信任网关传递的信息)
 			authUsers := users.Group("")
-			authUsers.Use(middleware.JWTAuth(jwtManager, log))
+			authUsers.Use(middleware.GatewayAuth(log))
 			{
 				authUsers.POST("/logout", userHandler.Logout)
 			}

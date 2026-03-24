@@ -16,6 +16,7 @@ export interface LoginRequest {
   username: string
   password: string
   app_code: string
+  device_id: string
 }
 
 export interface LoginResponse {
