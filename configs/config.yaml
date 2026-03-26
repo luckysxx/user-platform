@@ -26,3 +26,9 @@ kafka:
   brokers: "localhost:9092"
   topic_user_registered: "user_registered"
 
+otel:
+  jaeger_endpoint: "localhost:4318"
+  service_name: "user-platform"
+
+metrics:
+  port: "9092" # Prometheus 指标暴露端口（gRPC 服务专用，HTTP 服务复用业务端口）

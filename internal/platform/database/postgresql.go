@@ -3,7 +3,11 @@ package database
 import (
 	"context"
 
+	"entgo.io/ent/dialect/sql"
 	_ "github.com/lib/pq"
+	"github.com/uptrace/opentelemetry-go-extra/otelsql"
+	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
+
 	"github.com/luckysxx/user-platform/internal/ent"
 	"github.com/luckysxx/user-platform/internal/ent/migrate"
 	"github.com/luckysxx/user-platform/internal/platform/config"
@@ -13,11 +17,16 @@ import (
 
 // InitEntClient 初始化 Ent 客户端并验证数据库连接配置。
 func InitEntClient(cfg config.DatabaseConfig, log *zap.Logger) *ent.Client {
-	client, err := ent.Open(cfg.Driver, cfg.Source)
+	db, err := otelsql.Open(cfg.Driver, cfg.Source,
+		otelsql.WithAttributes(semconv.DBSystemPostgreSQL),
+	)
 	if err != nil {
-		log.Fatal("无法初始化 Ent 客户端", zap.Error(err))
+		log.Fatal("无法初始化带 OTel 追踪的数据库连接", zap.Error(err))
 		return nil
 	}
+
+	drv := sql.OpenDB(cfg.Driver, db)
+	client := ent.NewClient(ent.Driver(drv))
 
 	if cfg.AutoMigrate {
 		if err := client.Schema.Create(

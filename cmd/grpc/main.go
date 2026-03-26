@@ -1,18 +1,19 @@
 package main
 
 import (
+	"context"
 	"net"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
 
-	"github.com/redis/go-redis/v9"
 	"github.com/luckysxx/common/logger"
-	commonRedis "github.com/luckysxx/common/pkg/redis"
-	auth_pb "github.com/luckysxx/common/proto/auth"
-	user_pb "github.com/luckysxx/common/proto/user"
+	"github.com/luckysxx/common/metrics"
+	commonOtel "github.com/luckysxx/common/otel"
+	commonRedis "github.com/luckysxx/common/redis"
 	"github.com/luckysxx/common/ratelimiter"
 	"github.com/luckysxx/common/rpc"
 	"github.com/luckysxx/user-platform/internal/auth"
@@ -22,8 +23,7 @@ import (
 	"github.com/luckysxx/user-platform/internal/platform/database"
 	"github.com/luckysxx/user-platform/internal/repository"
 	"github.com/luckysxx/user-platform/internal/service"
-	usergrpcserver "github.com/luckysxx/user-platform/internal/transport/grpc/server"
-	"github.com/luckysxx/user-platform/internal/transport/grpc/interceptor"
+	transportgrpc "github.com/luckysxx/user-platform/internal/transport/grpc"
 
 	"go.uber.org/zap"
 )
@@ -34,20 +34,32 @@ func main() {
 
 	cfg := config.LoadConfig()
 
-	// 1. 初始化底层基础设施 (Infrastructure Bootstrapping)
+	// 初始化底层基础设施
 	entClient, redisClient, publisher := initInfra(cfg, log)
 	defer entClient.Close()
 	defer redisClient.Close()
 	defer publisher.Close()
 
-	// 2. 依赖注入与组件装配 (Dependency Injection)
-	grpcServer := buildServer(cfg, entClient, redisClient, publisher, log)
+	// 初始化 OpenTelemetry 链路追踪
+	otelShutdown, err := commonOtel.InitTracer(cfg.OTel.ServiceName, cfg.OTel.JaegerEndpoint)
+	if err != nil {
+		log.Fatal("初始化 OpenTelemetry 失败", zap.Error(err))
+	}
+	defer otelShutdown(context.Background())
 
-	// 3. 阻塞运行与优雅停机 (Graceful Shutdown)
+	// 依赖注入与组件装配
+	userSvc, authSvc, jwtManager := buildServices(cfg, entClient, redisClient, publisher, log)
+	grpcServer := transportgrpc.SetupServer(userSvc, authSvc, jwtManager, log)
+
+	// 启动 Prometheus Metrics HTTP 端点
+	go metrics.ServeMetrics(":" + cfg.Metrics.Port)
+	log.Info("Metrics 服务已启动", zap.String("port", cfg.Metrics.Port))
+
+	// 阻塞运行与优雅停机
 	runServer(grpcServer, cfg.GRPCServer.Port, log)
 }
 
-// initInfra 抽取基础设施的初始化逻辑
+// initInfra 初始化基础设施
 func initInfra(cfg *config.Config, log *zap.Logger) (*ent.Client, *redis.Client, event.Publisher) {
 	if err := rpc.InitIDGenClient(cfg.IDGenerator.Addr); err != nil {
 		log.Fatal("初始化 ID 生成器客户端失败", zap.Error(err))
@@ -64,8 +76,8 @@ func initInfra(cfg *config.Config, log *zap.Logger) (*ent.Client, *redis.Client,
 	return entClient, redisClient, publisher
 }
 
-// buildServer 抽取所有的依赖注入逻辑
-func buildServer(cfg *config.Config, entClient *ent.Client, redisClient *redis.Client, publisher event.Publisher, log *zap.Logger) *grpc.Server {
+// buildServices 构建业务层依赖，返回 gRPC Server 所需的 Service 和 JWTManager
+func buildServices(cfg *config.Config, entClient *ent.Client, redisClient *redis.Client, publisher event.Publisher, log *zap.Logger) (service.UserService, service.AuthService, *auth.JWTManager) {
 	// Repositories
 	userRepo := repository.NewUserRepository(entClient)
 	outboxRepo := repository.NewEventOutboxRepository(entClient, redisClient)
@@ -79,21 +91,10 @@ func buildServer(cfg *config.Config, entClient *ent.Client, redisClient *redis.C
 	userSvc := service.NewUserService(tm, userRepo, outboxRepo, publisher, log, cfg.Kafka.TopicUserRegistered)
 	authSvc := service.NewAuthService(userRepo, appRepo, sessionRepo, jwtManager, rateLim, log)
 
-	// GRPC Handlers
-	s := grpc.NewServer(
-		grpc.ChainUnaryInterceptor(
-			interceptor.RecoveryInterceptor(log),
-			interceptor.LoggerInterceptor(log),
-			interceptor.AuthInterceptor(jwtManager),
-		),
-	)
-	user_pb.RegisterUserServiceServer(s, usergrpcserver.NewUserServer(userSvc, log))
-	auth_pb.RegisterAuthServiceServer(s, usergrpcserver.NewAuthServer(authSvc, log))
-
-	return s
+	return userSvc, authSvc, jwtManager
 }
 
-// runServer 抽取 GRPC 服务器的启动与停机监听
+// runServer 启动 gRPC 服务器，监听停机信号后优雅退出
 func runServer(s *grpc.Server, port string, log *zap.Logger) {
 	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {

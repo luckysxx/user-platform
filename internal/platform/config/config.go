@@ -9,14 +9,21 @@ import (
 )
 
 type Config struct {
-	AppEnv      string              `mapstructure:"app_env"`
-	Server      ServerConfig        `mapstructure:"server"`
-	GRPCServer  GRPCServerConfig    `mapstructure:"grpc_server"`
-	Database    DatabaseConfig      `mapstructure:"database"`
-	Redis       RedisConfig         `mapstructure:"redis"`
-	JWT         JWTConfig           `mapstructure:"jwt"`
-	Kafka       KafkaConfig         `mapstructure:"kafka"`
-	IDGenerator IDGeneratorConfig   `mapstructure:"id_generator"`
+	AppEnv      string            `mapstructure:"app_env"`
+	Server      ServerConfig      `mapstructure:"server"`
+	GRPCServer  GRPCServerConfig  `mapstructure:"grpc_server"`
+	Database    DatabaseConfig    `mapstructure:"database"`
+	Redis       RedisConfig       `mapstructure:"redis"`
+	JWT         JWTConfig         `mapstructure:"jwt"`
+	Kafka       KafkaConfig       `mapstructure:"kafka"`
+	IDGenerator IDGeneratorConfig `mapstructure:"id_generator"`
+	OTel        OTelConfig        `mapstructure:"otel"`
+	Metrics     MetricsConfig     `mapstructure:"metrics"`
+}
+
+// MetricsConfig Prometheus 指标端口配置
+type MetricsConfig struct {
+	Port string `mapstructure:"port"`
 }
 
 type ServerConfig struct {
@@ -50,6 +57,11 @@ type GRPCServerConfig struct {
 
 type IDGeneratorConfig struct {
 	Addr string `mapstructure:"addr"`
+}
+
+type OTelConfig struct {
+	JaegerEndpoint string `mapstructure:"jaeger_endpoint"`
+	ServiceName    string `mapstructure:"service_name"`
 }
 
 // LoadConfig 从 Viper 加载配置

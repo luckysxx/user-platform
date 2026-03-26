@@ -1,12 +1,25 @@
-FROM golang:1.25
+# ======== 构建阶段 ========
+FROM golang:1.25-alpine AS builder
 
-WORKDIR /app
+WORKDIR /build
+
+ENV GOPROXY=https://goproxy.cn,direct
 
 COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN go build -o user_service ./cmd/http
+RUN CGO_ENABLED=0 GOOS=linux go build -o user_service ./cmd/http
+
+# ======== 运行阶段 ========
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates tzdata
+ENV TZ=Asia/Shanghai
+
+WORKDIR /app
+COPY --from=builder /build/user_service .
+COPY --from=builder /build/configs ./configs
 
 EXPOSE 8081
 CMD ["./user_service"]

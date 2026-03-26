@@ -13,9 +13,10 @@ import (
 	"github.com/segmentio/kafka-go"
 
 	"github.com/luckysxx/common/logger"
+	commonOtel "github.com/luckysxx/common/otel"
 	"github.com/luckysxx/common/ratelimiter"
 	"github.com/luckysxx/common/rpc"
-	commonRedis "github.com/luckysxx/common/pkg/redis"
+	commonRedis "github.com/luckysxx/common/redis"
 	"github.com/luckysxx/user-platform/internal/auth"
 	"github.com/luckysxx/user-platform/internal/ent"
 	"github.com/luckysxx/user-platform/internal/event"
@@ -46,16 +47,23 @@ func main() {
 	defer redisClient.Close()
 	defer kafkaWriter.Close()
 
-	// 2. 依赖注入与组件装配
+	// 2. 初始化 OpenTelemetry 链路追踪
+	otelShutdown, err := commonOtel.InitTracer(cfg.OTel.ServiceName, cfg.OTel.JaegerEndpoint)
+	if err != nil {
+		log.Fatal("初始化 OpenTelemetry 失败", zap.Error(err))
+	}
+	defer otelShutdown(context.Background())
+
+	// 3. 依赖注入与组件装配
 	publisher := event.NewKafkaPublisher(cfg.Kafka.Brokers, cfg.Kafka.TopicUserRegistered, log)
 	defer publisher.Close()
 	router := buildRouter(cfg, entClient, redisClient, publisher, log)
 
-	// 3. 启动 OutboxWorker（异步补偿发件箱）
+	// 4. 启动 OutboxWorker（异步补偿发件箱）
 	outboxRepo := repository.NewEventOutboxRepository(entClient, redisClient)
 	outboxWorker := worker.NewOutboxWorker(outboxRepo, kafkaWriter, redisClient, log)
 
-	// 4. 阻塞运行与优雅停机
+	// 5. 阻塞运行与优雅停机
 	runServer(router, outboxWorker, cfg.Server.Port, log)
 }
 

@@ -4,18 +4,20 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.http
-    ports:
-      - "8081:8081"
+    # 不暴露端口到宿主机，只通过网关访问（网络隔离）
     environment:
       - APP_ENV=${APP_ENV:-development}
       - SERVER_PORT=8081
       - DATABASE_AUTO_MIGRATE=${DB_AUTO_MIGRATE:-true}
       - DATABASE_SOURCE=postgres://luckys:123456@global-postgres:5432/user_platform?sslmode=disable
       - REDIS_ADDR=global-redis:6379
+      - REDIS_PASSWORD=123456
       - JWT_SECRET=user_platform_secret_key
       - KAFKA_BROKERS=global-kafka:9092
       - KAFKA_TOPIC_USER_REGISTERED=user.registered
       - ID_GENERATOR_ADDR=id-generator:50059
+      - OTEL_JAEGER_ENDPOINT=global-jaeger:4318
+      - OTEL_SERVICE_NAME=user-platform-http
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8081/health"]
       interval: 10s
@@ -31,18 +33,21 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.grpc
-    ports:
-      - "9091:9091"
+    # 不暴露端口到宿主机，只通过内网访问
     environment:
       - APP_ENV=${APP_ENV:-development}
       - USER_GRPC_PORT=9091
       - DATABASE_AUTO_MIGRATE=false
       - DATABASE_SOURCE=postgres://luckys:123456@global-postgres:5432/user_platform?sslmode=disable
       - REDIS_ADDR=global-redis:6379
+      - REDIS_PASSWORD=123456
       - JWT_SECRET=user_platform_secret_key
       - KAFKA_BROKERS=global-kafka:9092
       - KAFKA_TOPIC_USER_REGISTERED=user.registered
       - ID_GENERATOR_ADDR=id-generator:50059
+      - OTEL_JAEGER_ENDPOINT=global-jaeger:4318
+      - OTEL_SERVICE_NAME=user-platform-grpc
+      - METRICS_PORT=9092
     networks:
       - go-net
     restart: unless-stopped
