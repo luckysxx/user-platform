@@ -1,6 +1,7 @@
 package router
 
 import (
+	"github.com/luckysxx/common/logger"
 	"github.com/luckysxx/common/metrics"
 	"github.com/luckysxx/user-platform/internal/auth"
 	"github.com/luckysxx/user-platform/internal/transport/http/handler"
@@ -15,8 +16,8 @@ func SetupRouter(r *gin.Engine, userHandler *handler.UserHandler, jwtManager *au
 	r.GET("/metrics", metrics.GinMetricsHandler())
 	r.Use(metrics.GinMetrics())
 	r.Use(otelgin.Middleware("user-platform"))
-	r.Use(middleware.GinLogger(log))
-	r.Use(middleware.GinRecovery(log, true))
+	r.Use(logger.GinLogger(log))
+	r.Use(logger.GinRecovery(log, true))
 
 	// 用于 Docker 容器的健康检查
 	healthHandler := func(c *gin.Context) {

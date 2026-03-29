@@ -10,6 +10,7 @@ import (
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/luckysxx/user-platform/internal/ent/profile"
 	"github.com/luckysxx/user-platform/internal/ent/user"
 	"github.com/luckysxx/user-platform/internal/ent/userappprofile"
 )
@@ -100,6 +101,25 @@ func (_c *UserCreate) AddProfiles(v ...*UserAppProfile) *UserCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddProfileIDs(ids...)
+}
+
+// SetProfileID sets the "profile" edge to the Profile entity by ID.
+func (_c *UserCreate) SetProfileID(id int64) *UserCreate {
+	_c.mutation.SetProfileID(id)
+	return _c
+}
+
+// SetNillableProfileID sets the "profile" edge to the Profile entity by ID if the given value is not nil.
+func (_c *UserCreate) SetNillableProfileID(id *int64) *UserCreate {
+	if id != nil {
+		_c = _c.SetProfileID(*id)
+	}
+	return _c
+}
+
+// SetProfile sets the "profile" edge to the Profile entity.
+func (_c *UserCreate) SetProfile(v *Profile) *UserCreate {
+	return _c.SetProfileID(v.ID)
 }
 
 // Mutation returns the UserMutation object of the builder.
@@ -261,6 +281,22 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(userappprofile.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ProfileIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.ProfileTable,
+			Columns: []string{user.ProfileColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(profile.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

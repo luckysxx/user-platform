@@ -29,6 +29,8 @@ const (
 	FieldUpdatedAt = "updated_at"
 	// EdgeProfiles holds the string denoting the profiles edge name in mutations.
 	EdgeProfiles = "profiles"
+	// EdgeProfile holds the string denoting the profile edge name in mutations.
+	EdgeProfile = "profile"
 	// Table holds the table name of the user in the database.
 	Table = "users"
 	// ProfilesTable is the table that holds the profiles relation/edge.
@@ -38,6 +40,13 @@ const (
 	ProfilesInverseTable = "user_app_profiles"
 	// ProfilesColumn is the table column denoting the profiles relation/edge.
 	ProfilesColumn = "user_profiles"
+	// ProfileTable is the table that holds the profile relation/edge.
+	ProfileTable = "profiles"
+	// ProfileInverseTable is the table name for the Profile entity.
+	// It exists in this package in order to avoid circular dependency with the "profile" package.
+	ProfileInverseTable = "profiles"
+	// ProfileColumn is the table column denoting the profile relation/edge.
+	ProfileColumn = "user_profile"
 )
 
 // Columns holds all SQL columns for user fields.
@@ -156,10 +165,24 @@ func ByProfiles(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newProfilesStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByProfileField orders the results by profile field.
+func ByProfileField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newProfileStep(), sql.OrderByField(field, opts...))
+	}
+}
 func newProfilesStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ProfilesInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, ProfilesTable, ProfilesColumn),
+	)
+}
+func newProfileStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ProfileInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2O, false, ProfileTable, ProfileColumn),
 	)
 }

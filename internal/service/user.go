@@ -17,28 +17,31 @@ type UserService interface {
 }
 
 type userService struct {
-	tm         repository.TransactionManager
-	userRepo   repository.UserRepository
-	outboxRepo repository.EventOutboxRepository
-	Publisher  event.Publisher
-	logger     *zap.Logger
+	tm          repository.TransactionManager
+	userRepo    repository.UserRepository
+	profileRepo repository.ProfileRepository
+	outboxRepo  repository.EventOutboxRepository
+	Publisher   event.Publisher
+	logger      *zap.Logger
 	topicUserRegistered string
 }
 
 func NewUserService(
 	tm repository.TransactionManager,
 	userRepo repository.UserRepository,
+	profileRepo repository.ProfileRepository,
 	outboxRepo repository.EventOutboxRepository,
 	publisher event.Publisher,
 	logger *zap.Logger,
 	topicUserRegistered string,
 ) UserService {
 	return &userService{
-		tm:         tm,
-		userRepo:   userRepo,
-		outboxRepo: outboxRepo,
-		Publisher:  publisher,
-		logger:     logger,
+		tm:          tm,
+		userRepo:    userRepo,
+		profileRepo: profileRepo,
+		outboxRepo:  outboxRepo,
+		Publisher:   publisher,
+		logger:      logger,
 		topicUserRegistered: topicUserRegistered,
 	}
 }
@@ -58,6 +61,12 @@ func (s *userService) Register(ctx context.Context, req *servicecontract.Registe
 		user, err := s.userRepo.Create(txCtx, req.Email, req.Username, hashedPwd)
 		if err != nil {
 			return fmt.Errorf("创建用户失败: %w", err)
+		}
+
+		// 为该用户创建空的 Profile
+		_, err = s.profileRepo.CreateEmpty(txCtx, user.ID)
+		if err != nil {
+			return fmt.Errorf("创建用户资料失败: %w", err)
 		}
 
 		resp = &servicecontract.RegisterResult{

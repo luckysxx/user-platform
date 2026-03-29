@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	pkgerrs "github.com/luckysxx/common/errs"
+	"github.com/luckysxx/user-platform/internal/auth"
 	"github.com/luckysxx/user-platform/internal/dberr"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -32,6 +33,8 @@ func ToGRPCError(err error) error {
 	}
 
 	switch {
+	case errors.Is(err, auth.ErrInvalidOrExpiredToken):
+		return status.Error(codes.Unauthenticated, "无效的刷新凭证或已过期")
 	case errors.Is(err, dberr.ErrUsernameDuplicate),
 		errors.Is(err, dberr.ErrEmailDuplicate),
 		errors.Is(err, dberr.ErrDuplicateKey),

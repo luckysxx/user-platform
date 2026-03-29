@@ -48,6 +48,29 @@ var (
 			},
 		},
 	}
+	// ProfilesColumns holds the columns for the "profiles" table.
+	ProfilesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "nickname", Type: field.TypeString, Size: 32, Default: ""},
+		{Name: "avatar_url", Type: field.TypeString, Size: 512, Default: ""},
+		{Name: "bio", Type: field.TypeString, Size: 256, Default: ""},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "user_profile", Type: field.TypeInt64, Unique: true},
+	}
+	// ProfilesTable holds the schema information for the "profiles" table.
+	ProfilesTable = &schema.Table{
+		Name:       "profiles",
+		Columns:    ProfilesColumns,
+		PrimaryKey: []*schema.Column{ProfilesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "profiles_users_profile",
+				Columns:    []*schema.Column{ProfilesColumns[5]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -96,12 +119,14 @@ var (
 	Tables = []*schema.Table{
 		AppsTable,
 		EventOutboxesTable,
+		ProfilesTable,
 		UsersTable,
 		UserAppProfilesTable,
 	}
 )
 
 func init() {
+	ProfilesTable.ForeignKeys[0].RefTable = UsersTable
 	UserAppProfilesTable.ForeignKeys[0].RefTable = AppsTable
 	UserAppProfilesTable.ForeignKeys[1].RefTable = UsersTable
 }

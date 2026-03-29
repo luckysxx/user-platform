@@ -7,6 +7,7 @@ import (
 
 	"github.com/luckysxx/user-platform/internal/ent/app"
 	"github.com/luckysxx/user-platform/internal/ent/eventoutbox"
+	"github.com/luckysxx/user-platform/internal/ent/profile"
 	"github.com/luckysxx/user-platform/internal/ent/schema"
 	"github.com/luckysxx/user-platform/internal/ent/user"
 	"github.com/luckysxx/user-platform/internal/ent/userappprofile"
@@ -50,6 +51,36 @@ func init() {
 	eventoutbox.DefaultUpdatedAt = eventoutboxDescUpdatedAt.Default.(func() time.Time)
 	// eventoutbox.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	eventoutbox.UpdateDefaultUpdatedAt = eventoutboxDescUpdatedAt.UpdateDefault.(func() time.Time)
+	profileFields := schema.Profile{}.Fields()
+	_ = profileFields
+	// profileDescNickname is the schema descriptor for nickname field.
+	profileDescNickname := profileFields[1].Descriptor()
+	// profile.DefaultNickname holds the default value on creation for the nickname field.
+	profile.DefaultNickname = profileDescNickname.Default.(string)
+	// profile.NicknameValidator is a validator for the "nickname" field. It is called by the builders before save.
+	profile.NicknameValidator = profileDescNickname.Validators[0].(func(string) error)
+	// profileDescAvatarURL is the schema descriptor for avatar_url field.
+	profileDescAvatarURL := profileFields[2].Descriptor()
+	// profile.DefaultAvatarURL holds the default value on creation for the avatar_url field.
+	profile.DefaultAvatarURL = profileDescAvatarURL.Default.(string)
+	// profile.AvatarURLValidator is a validator for the "avatar_url" field. It is called by the builders before save.
+	profile.AvatarURLValidator = profileDescAvatarURL.Validators[0].(func(string) error)
+	// profileDescBio is the schema descriptor for bio field.
+	profileDescBio := profileFields[3].Descriptor()
+	// profile.DefaultBio holds the default value on creation for the bio field.
+	profile.DefaultBio = profileDescBio.Default.(string)
+	// profile.BioValidator is a validator for the "bio" field. It is called by the builders before save.
+	profile.BioValidator = profileDescBio.Validators[0].(func(string) error)
+	// profileDescUpdatedAt is the schema descriptor for updated_at field.
+	profileDescUpdatedAt := profileFields[4].Descriptor()
+	// profile.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	profile.DefaultUpdatedAt = profileDescUpdatedAt.Default.(func() time.Time)
+	// profile.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	profile.UpdateDefaultUpdatedAt = profileDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// profileDescID is the schema descriptor for id field.
+	profileDescID := profileFields[0].Descriptor()
+	// profile.IDValidator is a validator for the "id" field. It is called by the builders before save.
+	profile.IDValidator = profileDescID.Validators[0].(func(int64) error)
 	userFields := schema.User{}.Fields()
 	_ = userFields
 	// userDescEmail is the schema descriptor for email field.

@@ -17,12 +17,13 @@ import (
 
 type UserServer struct {
 	pb.UnimplementedUserServiceServer
-	svc    service.UserService
-	logger *zap.Logger
+	svc        service.UserService
+	profileSvc service.ProfileService
+	logger     *zap.Logger
 }
 
-func NewUserServer(svc service.UserService, logger *zap.Logger) *UserServer {
-	return &UserServer{svc: svc, logger: logger}
+func NewUserServer(svc service.UserService, profileSvc service.ProfileService, logger *zap.Logger) *UserServer {
+	return &UserServer{svc: svc, profileSvc: profileSvc, logger: logger}
 }
 
 func (s *UserServer) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.RegisterResponse, error) {
@@ -42,5 +43,50 @@ func (s *UserServer) Register(ctx context.Context, req *pb.RegisterRequest) (*pb
 	return &pb.RegisterResponse{
 		UserId:   resp.UserID,
 		Username: resp.Username,
+	}, nil
+}
+
+func (s *UserServer) GetProfile(ctx context.Context, req *pb.GetProfileRequest) (*pb.ProfileResponse, error) {
+	if req.GetUserId() == 0 {
+		return nil, status.Error(codes.InvalidArgument, "user_id is required")
+	}
+
+	resp, err := s.profileSvc.GetProfile(ctx, &servicecontract.GetProfileQuery{
+		UserID: req.GetUserId(),
+	})
+	if err != nil {
+		return nil, grpcerrs.ToGRPCError(err)
+	}
+
+	return &pb.ProfileResponse{
+		UserId:    resp.UserID,
+		Nickname:  resp.Nickname,
+		AvatarUrl: resp.AvatarURL,
+		Bio:       resp.Bio,
+		UpdatedAt: resp.UpdatedAt,
+	}, nil
+}
+
+func (s *UserServer) UpdateProfile(ctx context.Context, req *pb.UpdateProfileRequest) (*pb.ProfileResponse, error) {
+	if req.GetUserId() == 0 {
+		return nil, status.Error(codes.InvalidArgument, "user_id is required")
+	}
+
+	resp, err := s.profileSvc.UpdateProfile(ctx, &servicecontract.UpdateProfileCommand{
+		UserID:    req.GetUserId(),
+		Nickname:  req.GetNickname(),
+		AvatarURL: req.GetAvatarUrl(),
+		Bio:       req.GetBio(),
+	})
+	if err != nil {
+		return nil, grpcerrs.ToGRPCError(err)
+	}
+
+	return &pb.ProfileResponse{
+		UserId:    resp.UserID,
+		Nickname:  resp.Nickname,
+		AvatarUrl: resp.AvatarURL,
+		Bio:       resp.Bio,
+		UpdatedAt: resp.UpdatedAt,
 	}, nil
 }

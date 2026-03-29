@@ -64,5 +64,7 @@ func (User) Edges() []ent.Edge {
 	return []ent.Edge{
 		// 1对多：一个 User 可以授权多个 App
 		edge.To("profiles", UserAppProfile.Type),
+		// 1对1：一个 User 拥有一个 Profile
+		edge.To("profile", Profile.Type).Unique(),
 	}
 }

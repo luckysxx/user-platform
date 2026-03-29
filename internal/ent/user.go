@@ -9,6 +9,7 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
+	"github.com/luckysxx/user-platform/internal/ent/profile"
 	"github.com/luckysxx/user-platform/internal/ent/user"
 )
 
@@ -39,9 +40,11 @@ type User struct {
 type UserEdges struct {
 	// Profiles holds the value of the profiles edge.
 	Profiles []*UserAppProfile `json:"profiles,omitempty"`
+	// Profile holds the value of the profile edge.
+	Profile *Profile `json:"profile,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [1]bool
+	loadedTypes [2]bool
 }
 
 // ProfilesOrErr returns the Profiles value or an error if the edge
@@ -51,6 +54,17 @@ func (e UserEdges) ProfilesOrErr() ([]*UserAppProfile, error) {
 		return e.Profiles, nil
 	}
 	return nil, &NotLoadedError{edge: "profiles"}
+}
+
+// ProfileOrErr returns the Profile value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e UserEdges) ProfileOrErr() (*Profile, error) {
+	if e.Profile != nil {
+		return e.Profile, nil
+	} else if e.loadedTypes[1] {
+		return nil, &NotFoundError{label: profile.Label}
+	}
+	return nil, &NotLoadedError{edge: "profile"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -137,6 +151,11 @@ func (_m *User) Value(name string) (ent.Value, error) {
 // QueryProfiles queries the "profiles" edge of the User entity.
 func (_m *User) QueryProfiles() *UserAppProfileQuery {
 	return NewUserClient(_m.config).QueryProfiles(_m)
+}
+
+// QueryProfile queries the "profile" edge of the User entity.
+func (_m *User) QueryProfile() *ProfileQuery {
+	return NewUserClient(_m.config).QueryProfile(_m)
 }
 
 // Update returns a builder for updating this User.

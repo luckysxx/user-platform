@@ -13,8 +13,8 @@ import (
 	"github.com/luckysxx/common/logger"
 	"github.com/luckysxx/common/metrics"
 	commonOtel "github.com/luckysxx/common/otel"
-	commonRedis "github.com/luckysxx/common/redis"
 	"github.com/luckysxx/common/ratelimiter"
+	commonRedis "github.com/luckysxx/common/redis"
 	"github.com/luckysxx/common/rpc"
 	"github.com/luckysxx/user-platform/internal/auth"
 	"github.com/luckysxx/user-platform/internal/ent"
@@ -48,8 +48,8 @@ func main() {
 	defer otelShutdown(context.Background())
 
 	// 依赖注入与组件装配
-	userSvc, authSvc, jwtManager := buildServices(cfg, entClient, redisClient, publisher, log)
-	grpcServer := transportgrpc.SetupServer(userSvc, authSvc, jwtManager, log)
+	userSvc, profileSvc, authSvc, _ := buildServices(cfg, entClient, redisClient, publisher, log)
+	grpcServer := transportgrpc.SetupServer(userSvc, profileSvc, authSvc, log)
 
 	// 启动 Prometheus Metrics HTTP 端点
 	go metrics.ServeMetrics(":" + cfg.Metrics.Port)
@@ -77,9 +77,10 @@ func initInfra(cfg *config.Config, log *zap.Logger) (*ent.Client, *redis.Client,
 }
 
 // buildServices 构建业务层依赖，返回 gRPC Server 所需的 Service 和 JWTManager
-func buildServices(cfg *config.Config, entClient *ent.Client, redisClient *redis.Client, publisher event.Publisher, log *zap.Logger) (service.UserService, service.AuthService, *auth.JWTManager) {
+func buildServices(cfg *config.Config, entClient *ent.Client, redisClient *redis.Client, publisher event.Publisher, log *zap.Logger) (service.UserService, service.ProfileService, service.AuthService, *auth.JWTManager) {
 	// Repositories
 	userRepo := repository.NewUserRepository(entClient)
+	profileRepo := repository.NewProfileRepository(entClient)
 	outboxRepo := repository.NewEventOutboxRepository(entClient, redisClient)
 	tm := repository.NewTransactionManager(entClient)
 	sessionRepo := repository.NewRedisSessionRepo(redisClient)
@@ -87,11 +88,12 @@ func buildServices(cfg *config.Config, entClient *ent.Client, redisClient *redis
 
 	// Domain Services
 	jwtManager := auth.NewJWTManager(cfg.JWT.Secret)
-	rateLim := ratelimiter.NewRedisLimiter(redisClient, log)
-	userSvc := service.NewUserService(tm, userRepo, outboxRepo, publisher, log, cfg.Kafka.TopicUserRegistered)
+	rateLim := ratelimiter.NewFixedWindowLimiter(redisClient, log)
+	userSvc := service.NewUserService(tm, userRepo, profileRepo, outboxRepo, publisher, log, cfg.Kafka.TopicUserRegistered)
+	profileSvc := service.NewProfileService(profileRepo, log)
 	authSvc := service.NewAuthService(userRepo, appRepo, sessionRepo, jwtManager, rateLim, log)
 
-	return userSvc, authSvc, jwtManager
+	return userSvc, profileSvc, authSvc, jwtManager
 }
 
 // runServer 启动 gRPC 服务器，监听停机信号后优雅退出

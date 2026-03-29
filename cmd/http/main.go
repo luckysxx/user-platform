@@ -15,8 +15,8 @@ import (
 	"github.com/luckysxx/common/logger"
 	commonOtel "github.com/luckysxx/common/otel"
 	"github.com/luckysxx/common/ratelimiter"
-	"github.com/luckysxx/common/rpc"
 	commonRedis "github.com/luckysxx/common/redis"
+	"github.com/luckysxx/common/rpc"
 	"github.com/luckysxx/user-platform/internal/auth"
 	"github.com/luckysxx/user-platform/internal/ent"
 	"github.com/luckysxx/user-platform/internal/event"
@@ -89,6 +89,7 @@ func initInfra(cfg *config.Config, log *zap.Logger) (*ent.Client, *redis.Client,
 func buildRouter(cfg *config.Config, entClient *ent.Client, redisClient *redis.Client, publisher event.Publisher, log *zap.Logger) *gin.Engine {
 	// Repositories
 	userRepo := repository.NewUserRepository(entClient)
+	profileRepo := repository.NewProfileRepository(entClient)
 	outboxRepo := repository.NewEventOutboxRepository(entClient, redisClient)
 	tm := repository.NewTransactionManager(entClient)
 	sessionRepo := repository.NewRedisSessionRepo(redisClient)
@@ -96,8 +97,8 @@ func buildRouter(cfg *config.Config, entClient *ent.Client, redisClient *redis.C
 
 	// Domain Services
 	jwtManager := auth.NewJWTManager(cfg.JWT.Secret)
-	rateLim := ratelimiter.NewRedisLimiter(redisClient, log)
-	userSvc := service.NewUserService(tm, userRepo, outboxRepo, publisher, log, cfg.Kafka.TopicUserRegistered)
+	rateLim := ratelimiter.NewFixedWindowLimiter(redisClient, log)
+	userSvc := service.NewUserService(tm, userRepo, profileRepo, outboxRepo, publisher, log, cfg.Kafka.TopicUserRegistered)
 	authSvc := service.NewAuthService(userRepo, appRepo, sessionRepo, jwtManager, rateLim, log)
 
 	// Transport

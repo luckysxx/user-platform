@@ -16,6 +16,8 @@ type Tx struct {
 	App *AppClient
 	// EventOutbox is the client for interacting with the EventOutbox builders.
 	EventOutbox *EventOutboxClient
+	// Profile is the client for interacting with the Profile builders.
+	Profile *ProfileClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 	// UserAppProfile is the client for interacting with the UserAppProfile builders.
@@ -153,6 +155,7 @@ func (tx *Tx) Client() *Client {
 func (tx *Tx) init() {
 	tx.App = NewAppClient(tx.config)
 	tx.EventOutbox = NewEventOutboxClient(tx.config)
+	tx.Profile = NewProfileClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 	tx.UserAppProfile = NewUserAppProfileClient(tx.config)
 }

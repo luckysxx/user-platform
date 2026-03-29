@@ -12,6 +12,9 @@ type App func(*sql.Selector)
 // EventOutbox is the predicate function for eventoutbox builders.
 type EventOutbox func(*sql.Selector)
 
+// Profile is the predicate function for profile builders.
+type Profile func(*sql.Selector)
+
 // User is the predicate function for user builders.
 type User func(*sql.Selector)
 
