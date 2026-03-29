@@ -134,3 +134,5 @@ require (
 )
 
 replace google.golang.org/genproto => google.golang.org/genproto v0.0.0-20260319201613-d00831a3d3e7
+
+replace github.com/luckysxx/common/health => ../common/health

@@ -12,6 +12,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/segmentio/kafka-go"
 
+	"github.com/luckysxx/common/health"
 	"github.com/luckysxx/common/logger"
 	commonOtel "github.com/luckysxx/common/otel"
 	"github.com/luckysxx/common/ratelimiter"
@@ -104,6 +105,18 @@ func buildRouter(cfg *config.Config, entClient *ent.Client, redisClient *redis.C
 	// Transport
 	userHandler := handler.NewUserHandler(userSvc, authSvc, log)
 	r := gin.New()
+
+	// 健康检查（注册在业务中间件之前）
+	healthChecker := health.NewChecker()
+	healthChecker.AddCheck("postgres", func(ctx context.Context) error {
+		var v []int
+		return entClient.User.Query().Limit(0).Select().Scan(ctx, &v)
+	})
+	healthChecker.AddCheck("redis", func(ctx context.Context) error {
+		return redisClient.Ping(ctx).Err()
+	})
+	healthChecker.Register(r)
+
 	httprouter.SetupRouter(r, userHandler, jwtManager, log)
 
 	return r
