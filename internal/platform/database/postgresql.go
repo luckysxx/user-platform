@@ -4,31 +4,32 @@ import (
 	"context"
 
 	"entgo.io/ent/dialect/sql"
-	_ "github.com/lib/pq"
-	"github.com/uptrace/opentelemetry-go-extra/otelsql"
-	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 
+	commonPG "github.com/luckysxx/common/postgres"
 	"github.com/luckysxx/user-platform/internal/ent"
 	"github.com/luckysxx/user-platform/internal/ent/migrate"
-	"github.com/luckysxx/user-platform/internal/platform/config"
 
 	"go.uber.org/zap"
 )
 
-// InitEntClient 初始化 Ent 客户端并验证数据库连接配置。
-func InitEntClient(cfg config.DatabaseConfig, log *zap.Logger) *ent.Client {
-	db, err := otelsql.Open(cfg.Driver, cfg.Source,
-		otelsql.WithAttributes(semconv.DBSystemPostgreSQL),
-	)
+// InitEntClient 初始化 Ent 客户端。
+//
+// 底层 Postgres 连接（含 OTel 追踪和连接池）由 common/postgres 统一管理，
+// 本函数只负责 Ent 包装和 Schema Migration —— 这两部分因各服务 Schema 不同而无法通用化。
+func InitEntClient(driver, source string, autoMigrate bool, log *zap.Logger) *ent.Client {
+	db, err := commonPG.Init(commonPG.Config{
+		Driver: driver,
+		Source: source,
+	}, commonPG.DefaultPoolConfig(), log)
 	if err != nil {
-		log.Fatal("无法初始化带 OTel 追踪的数据库连接", zap.Error(err))
+		log.Fatal("初始化数据库失败", zap.Error(err))
 		return nil
 	}
 
-	drv := sql.OpenDB(cfg.Driver, db)
+	drv := sql.OpenDB(driver, db)
 	client := ent.NewClient(ent.Driver(drv))
 
-	if cfg.AutoMigrate {
+	if autoMigrate {
 		if err := client.Schema.Create(
 			context.Background(),
 			migrate.WithDropIndex(true),
@@ -45,4 +46,3 @@ func InitEntClient(cfg config.DatabaseConfig, log *zap.Logger) *ent.Client {
 	log.Info("成功初始化 Ent 客户端")
 	return client
 }
-

@@ -2,9 +2,13 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/luckysxx/common/crypto"
+	mqevents "github.com/luckysxx/common/mq/events"
+	mqtopics "github.com/luckysxx/common/mq/topics"
 	"github.com/luckysxx/user-platform/internal/event"
 	"github.com/luckysxx/user-platform/internal/repository"
 	servicecontract "github.com/luckysxx/user-platform/internal/service/contract"
@@ -17,12 +21,12 @@ type UserService interface {
 }
 
 type userService struct {
-	tm          repository.TransactionManager
-	userRepo    repository.UserRepository
-	profileRepo repository.ProfileRepository
-	outboxRepo  repository.EventOutboxRepository
-	Publisher   event.Publisher
-	logger      *zap.Logger
+	tm                  repository.TransactionManager
+	userRepo            repository.UserRepository
+	profileRepo         repository.ProfileRepository
+	outboxRepo          repository.EventOutboxRepository
+	Publisher           event.Publisher
+	logger              *zap.Logger
 	topicUserRegistered string
 }
 
@@ -36,12 +40,12 @@ func NewUserService(
 	topicUserRegistered string,
 ) UserService {
 	return &userService{
-		tm:          tm,
-		userRepo:    userRepo,
-		profileRepo: profileRepo,
-		outboxRepo:  outboxRepo,
-		Publisher:   publisher,
-		logger:      logger,
+		tm:                  tm,
+		userRepo:            userRepo,
+		profileRepo:         profileRepo,
+		outboxRepo:          outboxRepo,
+		Publisher:           publisher,
+		logger:              logger,
 		topicUserRegistered: topicUserRegistered,
 	}
 }
@@ -75,12 +79,17 @@ func (s *userService) Register(ctx context.Context, req *servicecontract.Registe
 			Username: user.Username,
 		}
 
-		eventPayload := []byte(fmt.Sprintf(
-			`{"user_id": %d, "email": "%s", "username": "%s"}`,
-			user.ID,
-			user.Email,
-			user.Username,
-		))
+		eventPayload, err := json.Marshal(mqevents.UserRegistered{
+			Version:   mqevents.UserRegisteredVersion,
+			EventType: mqtopics.UserRegistered,
+			UserID:    user.ID,
+			Email:     user.Email,
+			Username:  user.Username,
+			Timestamp: time.Now().Unix(),
+		})
+		if err != nil {
+			return fmt.Errorf("序列化用户注册事件失败: %w", err)
+		}
 
 		err = s.outboxRepo.SaveEvent(txCtx, s.topicUserRegistered, eventPayload)
 		if err != nil {

@@ -20,6 +20,8 @@ const (
 	FieldAvatarURL = "avatar_url"
 	// FieldBio holds the string denoting the bio field in the database.
 	FieldBio = "bio"
+	// FieldBirthday holds the string denoting the birthday field in the database.
+	FieldBirthday = "birthday"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
 	// EdgeUser holds the string denoting the user edge name in mutations.
@@ -41,6 +43,7 @@ var Columns = []string{
 	FieldNickname,
 	FieldAvatarURL,
 	FieldBio,
+	FieldBirthday,
 	FieldUpdatedAt,
 }
 
@@ -78,6 +81,10 @@ var (
 	DefaultBio string
 	// BioValidator is a validator for the "bio" field. It is called by the builders before save.
 	BioValidator func(string) error
+	// DefaultBirthday holds the default value on creation for the "birthday" field.
+	DefaultBirthday string
+	// BirthdayValidator is a validator for the "birthday" field. It is called by the builders before save.
+	BirthdayValidator func(string) error
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
 	DefaultUpdatedAt func() time.Time
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
@@ -107,6 +114,11 @@ func ByAvatarURL(opts ...sql.OrderTermOption) OrderOption {
 // ByBio orders the results by the bio field.
 func ByBio(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldBio, opts...).ToFunc()
+}
+
+// ByBirthday orders the results by the birthday field.
+func ByBirthday(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBirthday, opts...).ToFunc()
 }
 
 // ByUpdatedAt orders the results by the updated_at field.

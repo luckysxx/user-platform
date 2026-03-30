@@ -74,7 +74,7 @@ func initInfra(cfg *config.Config, log *zap.Logger) (*ent.Client, *redis.Client,
 		log.Fatal("初始化 ID 生成器客户端失败", zap.Error(err))
 	}
 
-	entClient := database.InitEntClient(cfg.Database, log)
+	entClient := database.InitEntClient(cfg.Database.Driver, cfg.Database.Source, cfg.Database.AutoMigrate, log)
 	redisClient := commonRedis.Init(commonRedis.Config{
 		Addr:     cfg.Redis.Addr,
 		Password: cfg.Redis.Password,
@@ -109,8 +109,8 @@ func buildRouter(cfg *config.Config, entClient *ent.Client, redisClient *redis.C
 	// 健康检查（注册在业务中间件之前）
 	healthChecker := health.NewChecker()
 	healthChecker.AddCheck("postgres", func(ctx context.Context) error {
-		var v []int
-		return entClient.User.Query().Limit(0).Select().Scan(ctx, &v)
+		_, err := entClient.User.Query().Exist(ctx)
+		return err
 	})
 	healthChecker.AddCheck("redis", func(ctx context.Context) error {
 		return redisClient.Ping(ctx).Err()

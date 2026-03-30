@@ -71,8 +71,14 @@ func init() {
 	profile.DefaultBio = profileDescBio.Default.(string)
 	// profile.BioValidator is a validator for the "bio" field. It is called by the builders before save.
 	profile.BioValidator = profileDescBio.Validators[0].(func(string) error)
+	// profileDescBirthday is the schema descriptor for birthday field.
+	profileDescBirthday := profileFields[4].Descriptor()
+	// profile.DefaultBirthday holds the default value on creation for the birthday field.
+	profile.DefaultBirthday = profileDescBirthday.Default.(string)
+	// profile.BirthdayValidator is a validator for the "birthday" field. It is called by the builders before save.
+	profile.BirthdayValidator = profileDescBirthday.Validators[0].(func(string) error)
 	// profileDescUpdatedAt is the schema descriptor for updated_at field.
-	profileDescUpdatedAt := profileFields[4].Descriptor()
+	profileDescUpdatedAt := profileFields[5].Descriptor()
 	// profile.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	profile.DefaultUpdatedAt = profileDescUpdatedAt.Default.(func() time.Time)
 	// profile.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

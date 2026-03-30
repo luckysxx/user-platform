@@ -70,6 +70,11 @@ func Bio(v string) predicate.Profile {
 	return predicate.Profile(sql.FieldEQ(FieldBio, v))
 }
 
+// Birthday applies equality check predicate on the "birthday" field. It's identical to BirthdayEQ.
+func Birthday(v string) predicate.Profile {
+	return predicate.Profile(sql.FieldEQ(FieldBirthday, v))
+}
+
 // UpdatedAt applies equality check predicate on the "updated_at" field. It's identical to UpdatedAtEQ.
 func UpdatedAt(v time.Time) predicate.Profile {
 	return predicate.Profile(sql.FieldEQ(FieldUpdatedAt, v))
@@ -268,6 +273,71 @@ func BioEqualFold(v string) predicate.Profile {
 // BioContainsFold applies the ContainsFold predicate on the "bio" field.
 func BioContainsFold(v string) predicate.Profile {
 	return predicate.Profile(sql.FieldContainsFold(FieldBio, v))
+}
+
+// BirthdayEQ applies the EQ predicate on the "birthday" field.
+func BirthdayEQ(v string) predicate.Profile {
+	return predicate.Profile(sql.FieldEQ(FieldBirthday, v))
+}
+
+// BirthdayNEQ applies the NEQ predicate on the "birthday" field.
+func BirthdayNEQ(v string) predicate.Profile {
+	return predicate.Profile(sql.FieldNEQ(FieldBirthday, v))
+}
+
+// BirthdayIn applies the In predicate on the "birthday" field.
+func BirthdayIn(vs ...string) predicate.Profile {
+	return predicate.Profile(sql.FieldIn(FieldBirthday, vs...))
+}
+
+// BirthdayNotIn applies the NotIn predicate on the "birthday" field.
+func BirthdayNotIn(vs ...string) predicate.Profile {
+	return predicate.Profile(sql.FieldNotIn(FieldBirthday, vs...))
+}
+
+// BirthdayGT applies the GT predicate on the "birthday" field.
+func BirthdayGT(v string) predicate.Profile {
+	return predicate.Profile(sql.FieldGT(FieldBirthday, v))
+}
+
+// BirthdayGTE applies the GTE predicate on the "birthday" field.
+func BirthdayGTE(v string) predicate.Profile {
+	return predicate.Profile(sql.FieldGTE(FieldBirthday, v))
+}
+
+// BirthdayLT applies the LT predicate on the "birthday" field.
+func BirthdayLT(v string) predicate.Profile {
+	return predicate.Profile(sql.FieldLT(FieldBirthday, v))
+}
+
+// BirthdayLTE applies the LTE predicate on the "birthday" field.
+func BirthdayLTE(v string) predicate.Profile {
+	return predicate.Profile(sql.FieldLTE(FieldBirthday, v))
+}
+
+// BirthdayContains applies the Contains predicate on the "birthday" field.
+func BirthdayContains(v string) predicate.Profile {
+	return predicate.Profile(sql.FieldContains(FieldBirthday, v))
+}
+
+// BirthdayHasPrefix applies the HasPrefix predicate on the "birthday" field.
+func BirthdayHasPrefix(v string) predicate.Profile {
+	return predicate.Profile(sql.FieldHasPrefix(FieldBirthday, v))
+}
+
+// BirthdayHasSuffix applies the HasSuffix predicate on the "birthday" field.
+func BirthdayHasSuffix(v string) predicate.Profile {
+	return predicate.Profile(sql.FieldHasSuffix(FieldBirthday, v))
+}
+
+// BirthdayEqualFold applies the EqualFold predicate on the "birthday" field.
+func BirthdayEqualFold(v string) predicate.Profile {
+	return predicate.Profile(sql.FieldEqualFold(FieldBirthday, v))
+}
+
+// BirthdayContainsFold applies the ContainsFold predicate on the "birthday" field.
+func BirthdayContainsFold(v string) predicate.Profile {
+	return predicate.Profile(sql.FieldContainsFold(FieldBirthday, v))
 }
 
 // UpdatedAtEQ applies the EQ predicate on the "updated_at" field.

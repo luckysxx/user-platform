@@ -54,6 +54,7 @@ var (
 		{Name: "nickname", Type: field.TypeString, Size: 32, Default: ""},
 		{Name: "avatar_url", Type: field.TypeString, Size: 512, Default: ""},
 		{Name: "bio", Type: field.TypeString, Size: 256, Default: ""},
+		{Name: "birthday", Type: field.TypeString, Size: 10, Default: ""},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "user_profile", Type: field.TypeInt64, Unique: true},
 	}
@@ -65,7 +66,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "profiles_users_profile",
-				Columns:    []*schema.Column{ProfilesColumns[5]},
+				Columns:    []*schema.Column{ProfilesColumns[6]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},

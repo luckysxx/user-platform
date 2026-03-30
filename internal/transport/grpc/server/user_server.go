@@ -15,6 +15,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// UserServer 是用户服务的 gRPC 接口实现。
 type UserServer struct {
 	pb.UnimplementedUserServiceServer
 	svc        service.UserService
@@ -22,10 +23,12 @@ type UserServer struct {
 	logger     *zap.Logger
 }
 
+// NewUserServer 创建一个用户服务 gRPC Server。
 func NewUserServer(svc service.UserService, profileSvc service.ProfileService, logger *zap.Logger) *UserServer {
 	return &UserServer{svc: svc, profileSvc: profileSvc, logger: logger}
 }
 
+// Register 处理用户注册的 gRPC 请求。
 func (s *UserServer) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.RegisterResponse, error) {
 	if strings.TrimSpace(req.GetEmail()) == "" || strings.TrimSpace(req.GetUsername()) == "" || strings.TrimSpace(req.GetPassword()) == "" {
 		return nil, status.Error(codes.InvalidArgument, "email/username/password are required")
@@ -46,6 +49,7 @@ func (s *UserServer) Register(ctx context.Context, req *pb.RegisterRequest) (*pb
 	}, nil
 }
 
+// GetProfile 处理获取用户资料的 gRPC 请求。
 func (s *UserServer) GetProfile(ctx context.Context, req *pb.GetProfileRequest) (*pb.ProfileResponse, error) {
 	if req.GetUserId() == 0 {
 		return nil, status.Error(codes.InvalidArgument, "user_id is required")
@@ -63,10 +67,12 @@ func (s *UserServer) GetProfile(ctx context.Context, req *pb.GetProfileRequest) 
 		Nickname:  resp.Nickname,
 		AvatarUrl: resp.AvatarURL,
 		Bio:       resp.Bio,
+		Birthday:  resp.Birthday,
 		UpdatedAt: resp.UpdatedAt,
 	}, nil
 }
 
+// UpdateProfile 处理更新用户资料的 gRPC 请求。
 func (s *UserServer) UpdateProfile(ctx context.Context, req *pb.UpdateProfileRequest) (*pb.ProfileResponse, error) {
 	if req.GetUserId() == 0 {
 		return nil, status.Error(codes.InvalidArgument, "user_id is required")
@@ -77,6 +83,7 @@ func (s *UserServer) UpdateProfile(ctx context.Context, req *pb.UpdateProfileReq
 		Nickname:  req.GetNickname(),
 		AvatarURL: req.GetAvatarUrl(),
 		Bio:       req.GetBio(),
+		Birthday:  req.GetBirthday(),
 	})
 	if err != nil {
 		return nil, grpcerrs.ToGRPCError(err)
@@ -87,6 +94,7 @@ func (s *UserServer) UpdateProfile(ctx context.Context, req *pb.UpdateProfileReq
 		Nickname:  resp.Nickname,
 		AvatarUrl: resp.AvatarURL,
 		Bio:       resp.Bio,
+		Birthday:  resp.Birthday,
 		UpdatedAt: resp.UpdatedAt,
 	}, nil
 }

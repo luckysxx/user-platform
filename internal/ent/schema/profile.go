@@ -34,6 +34,11 @@ func (Profile) Fields() []ent.Field {
 			Default("").
 			Comment("个性签名"),
 
+		field.String("birthday").
+			MaxLen(10).
+			Default("").
+			Comment("生日，格式 YYYY-MM-DD"),
+
 		field.Time("updated_at").
 			Default(time.Now).
 			UpdateDefault(time.Now).

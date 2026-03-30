@@ -24,6 +24,8 @@ type Profile struct {
 	AvatarURL string `json:"avatar_url,omitempty"`
 	// 个性签名
 	Bio string `json:"bio,omitempty"`
+	// 生日，格式 YYYY-MM-DD
+	Birthday string `json:"birthday,omitempty"`
 	// 最后更新时间
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -60,7 +62,7 @@ func (*Profile) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case profile.FieldID:
 			values[i] = new(sql.NullInt64)
-		case profile.FieldNickname, profile.FieldAvatarURL, profile.FieldBio:
+		case profile.FieldNickname, profile.FieldAvatarURL, profile.FieldBio, profile.FieldBirthday:
 			values[i] = new(sql.NullString)
 		case profile.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -104,6 +106,12 @@ func (_m *Profile) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field bio", values[i])
 			} else if value.Valid {
 				_m.Bio = value.String
+			}
+		case profile.FieldBirthday:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field birthday", values[i])
+			} else if value.Valid {
+				_m.Birthday = value.String
 			}
 		case profile.FieldUpdatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -167,6 +175,9 @@ func (_m *Profile) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("bio=")
 	builder.WriteString(_m.Bio)
+	builder.WriteString(", ")
+	builder.WriteString("birthday=")
+	builder.WriteString(_m.Birthday)
 	builder.WriteString(", ")
 	builder.WriteString("updated_at=")
 	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))

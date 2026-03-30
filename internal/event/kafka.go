@@ -6,18 +6,12 @@ import (
 	"encoding/json"
 	"time"
 
+	mqevents "github.com/luckysxx/common/mq/events"
+	mqtopics "github.com/luckysxx/common/mq/topics"
 	"github.com/luckysxx/common/trace"
 	"github.com/segmentio/kafka-go"
 	"go.uber.org/zap"
 )
-
-type UserRegisteredEvent struct {
-	EventType string `json:"event_type"`
-	UserID    int64  `json:"user_id"`
-	Email     string `json:"email"`
-	Username  string `json:"username"`
-	Timestamp int64  `json:"timestamp"`
-}
 
 // Publisher 接口：定义了业务层能调用哪些发送动作
 type Publisher interface {
@@ -36,7 +30,7 @@ func NewKafkaWriter(addr string) *kafka.Writer {
 	return &kafka.Writer{
 		Addr:                   kafka.TCP(addr),
 		Balancer:               &kafka.LeastBytes{},
-		AllowAutoTopicCreation: true,
+		AllowAutoTopicCreation: false,
 	}
 }
 
@@ -48,8 +42,9 @@ func NewKafkaPublisher(addr string, topic string, logger *zap.Logger) *publisher
 // PublishUserRegistered 具体发送用户注册事件的方法
 func (k *publisher) PublishUserRegistered(ctx context.Context, userID int64, email string, username string) error {
 	// 1. 构造标准的消息体 JSON
-	msg := UserRegisteredEvent{
-		EventType: "user_registered",
+	msg := mqevents.UserRegistered{
+		Version:   mqevents.UserRegisteredVersion,
+		EventType: mqtopics.UserRegistered,
 		UserID:    userID,
 		Email:     email,
 		Username:  username,

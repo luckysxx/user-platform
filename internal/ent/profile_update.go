@@ -71,6 +71,20 @@ func (_u *ProfileUpdate) SetNillableBio(v *string) *ProfileUpdate {
 	return _u
 }
 
+// SetBirthday sets the "birthday" field.
+func (_u *ProfileUpdate) SetBirthday(v string) *ProfileUpdate {
+	_u.mutation.SetBirthday(v)
+	return _u
+}
+
+// SetNillableBirthday sets the "birthday" field if the given value is not nil.
+func (_u *ProfileUpdate) SetNillableBirthday(v *string) *ProfileUpdate {
+	if v != nil {
+		_u.SetBirthday(*v)
+	}
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *ProfileUpdate) SetUpdatedAt(v time.Time) *ProfileUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -152,6 +166,11 @@ func (_u *ProfileUpdate) check() error {
 			return &ValidationError{Name: "bio", err: fmt.Errorf(`ent: validator failed for field "Profile.bio": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Birthday(); ok {
+		if err := profile.BirthdayValidator(v); err != nil {
+			return &ValidationError{Name: "birthday", err: fmt.Errorf(`ent: validator failed for field "Profile.birthday": %w`, err)}
+		}
+	}
 	if _u.mutation.UserCleared() && len(_u.mutation.UserIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Profile.user"`)
 	}
@@ -178,6 +197,9 @@ func (_u *ProfileUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Bio(); ok {
 		_spec.SetField(profile.FieldBio, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Birthday(); ok {
+		_spec.SetField(profile.FieldBirthday, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(profile.FieldUpdatedAt, field.TypeTime, value)
@@ -269,6 +291,20 @@ func (_u *ProfileUpdateOne) SetBio(v string) *ProfileUpdateOne {
 func (_u *ProfileUpdateOne) SetNillableBio(v *string) *ProfileUpdateOne {
 	if v != nil {
 		_u.SetBio(*v)
+	}
+	return _u
+}
+
+// SetBirthday sets the "birthday" field.
+func (_u *ProfileUpdateOne) SetBirthday(v string) *ProfileUpdateOne {
+	_u.mutation.SetBirthday(v)
+	return _u
+}
+
+// SetNillableBirthday sets the "birthday" field if the given value is not nil.
+func (_u *ProfileUpdateOne) SetNillableBirthday(v *string) *ProfileUpdateOne {
+	if v != nil {
+		_u.SetBirthday(*v)
 	}
 	return _u
 }
@@ -367,6 +403,11 @@ func (_u *ProfileUpdateOne) check() error {
 			return &ValidationError{Name: "bio", err: fmt.Errorf(`ent: validator failed for field "Profile.bio": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Birthday(); ok {
+		if err := profile.BirthdayValidator(v); err != nil {
+			return &ValidationError{Name: "birthday", err: fmt.Errorf(`ent: validator failed for field "Profile.birthday": %w`, err)}
+		}
+	}
 	if _u.mutation.UserCleared() && len(_u.mutation.UserIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Profile.user"`)
 	}
@@ -410,6 +451,9 @@ func (_u *ProfileUpdateOne) sqlSave(ctx context.Context) (_node *Profile, err er
 	}
 	if value, ok := _u.mutation.Bio(); ok {
 		_spec.SetField(profile.FieldBio, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Birthday(); ok {
+		_spec.SetField(profile.FieldBirthday, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(profile.FieldUpdatedAt, field.TypeTime, value)

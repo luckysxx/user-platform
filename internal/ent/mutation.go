@@ -1149,6 +1149,7 @@ type ProfileMutation struct {
 	nickname      *string
 	avatar_url    *string
 	bio           *string
+	birthday      *string
 	updated_at    *time.Time
 	clearedFields map[string]struct{}
 	user          *int64
@@ -1370,6 +1371,42 @@ func (m *ProfileMutation) ResetBio() {
 	m.bio = nil
 }
 
+// SetBirthday sets the "birthday" field.
+func (m *ProfileMutation) SetBirthday(s string) {
+	m.birthday = &s
+}
+
+// Birthday returns the value of the "birthday" field in the mutation.
+func (m *ProfileMutation) Birthday() (r string, exists bool) {
+	v := m.birthday
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBirthday returns the old "birthday" field's value of the Profile entity.
+// If the Profile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProfileMutation) OldBirthday(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBirthday is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBirthday requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBirthday: %w", err)
+	}
+	return oldValue.Birthday, nil
+}
+
+// ResetBirthday resets all changes to the "birthday" field.
+func (m *ProfileMutation) ResetBirthday() {
+	m.birthday = nil
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (m *ProfileMutation) SetUpdatedAt(t time.Time) {
 	m.updated_at = &t
@@ -1479,7 +1516,7 @@ func (m *ProfileMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ProfileMutation) Fields() []string {
-	fields := make([]string, 0, 4)
+	fields := make([]string, 0, 5)
 	if m.nickname != nil {
 		fields = append(fields, profile.FieldNickname)
 	}
@@ -1488,6 +1525,9 @@ func (m *ProfileMutation) Fields() []string {
 	}
 	if m.bio != nil {
 		fields = append(fields, profile.FieldBio)
+	}
+	if m.birthday != nil {
+		fields = append(fields, profile.FieldBirthday)
 	}
 	if m.updated_at != nil {
 		fields = append(fields, profile.FieldUpdatedAt)
@@ -1506,6 +1546,8 @@ func (m *ProfileMutation) Field(name string) (ent.Value, bool) {
 		return m.AvatarURL()
 	case profile.FieldBio:
 		return m.Bio()
+	case profile.FieldBirthday:
+		return m.Birthday()
 	case profile.FieldUpdatedAt:
 		return m.UpdatedAt()
 	}
@@ -1523,6 +1565,8 @@ func (m *ProfileMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldAvatarURL(ctx)
 	case profile.FieldBio:
 		return m.OldBio(ctx)
+	case profile.FieldBirthday:
+		return m.OldBirthday(ctx)
 	case profile.FieldUpdatedAt:
 		return m.OldUpdatedAt(ctx)
 	}
@@ -1554,6 +1598,13 @@ func (m *ProfileMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetBio(v)
+		return nil
+	case profile.FieldBirthday:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBirthday(v)
 		return nil
 	case profile.FieldUpdatedAt:
 		v, ok := value.(time.Time)
@@ -1619,6 +1670,9 @@ func (m *ProfileMutation) ResetField(name string) error {
 		return nil
 	case profile.FieldBio:
 		m.ResetBio()
+		return nil
+	case profile.FieldBirthday:
+		m.ResetBirthday()
 		return nil
 	case profile.FieldUpdatedAt:
 		m.ResetUpdatedAt()

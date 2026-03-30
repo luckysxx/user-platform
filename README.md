@@ -8,7 +8,9 @@ Go 微服务中台，提供统一账号注册、多应用登录鉴权、Session 
 - **多应用鉴权**：携带 `app_code` 登录，签发 Access Token + Refresh Token，首次登录自动建立授权关系
 - **Session 管理**：设备级 Session 追踪、登出、Token 轮换刷新
 - **事件驱动**：Transactional Outbox 模式保证注册事件可靠投递至 Kafka
+- **数据同步**：结合 Debezium CDC 实现 PostgreSQL 变更数据非侵入式同步至下游
 - **异步 Worker**：OutboxWorker 后台轮询 pending 事件，自动投递 Kafka 并更新状态
+- **基础设施**：基于 `common` 组件库实现 Redis / PostgreSQL 统一连接池管理与 OTel 链路追踪
 - **双协议**：HTTP (Gin) + gRPC (grpc-go) 共享同一套 Service 层
 
 ## 技术栈
@@ -25,6 +27,7 @@ Go 微服务中台，提供统一账号注册、多应用登录鉴权、Session 
 | ID 生成 | 远程 Snowflake (gRPC) |
 | 容器化 | Docker + Docker Compose |
 | 可观测 | Prometheus + Grafana + Loki |
+| 实时同步 | Debezium (CDC) + PostgreSQL 逻辑复制 |
 
 ## 项目结构
 
@@ -84,6 +87,7 @@ make docker-down      # 停止并清理
 | `server.port` | HTTP 端口 | `8081` |
 | `grpc_server.port` | gRPC 端口 | `9091` |
 | `kafka.brokers` | Kafka 地址 | `global-kafka:9092` |
+| `kafka.topic_user_registered` | 用户注册事件 Topic | `user.registered` |
 | `id_generator.addr` | 发号器 gRPC 地址 | `id-generator:50059` |
 
 ### .env（敏感，不提交）
@@ -138,6 +142,12 @@ grpcurl -plaintext -d '{"username":"alice123","password":"Password123","app_code
 
 ### Transactional Outbox 模式
 注册时在同一个数据库事务中写入 `users` 表和 `event_outboxes` 表，OutboxWorker 后台轮询 pending 事件投递 Kafka，保证数据一致性。
+
+### Kafka Topic 命名约定
+统一使用全小写 + 点分隔风格，例如 `user.registered`、`user.deleted`。不要混用 `UserRegistered`、`user_registered` 这类 PascalCase 或下划线风格，避免 Kafka 因自动建 Topic 生成多份语义重复的主题。
+
+### Kafka 生产治理
+共享事件契约统一收敛在 `common/mq` 中。Producer 默认关闭 Kafka 自动建 Topic，Topic 需要提前创建；共享事件消息体需要携带 `version` 字段，当前 `user.registered` 使用 `v1`。
 
 ### Bootstrap 三段式入口
 `main.go` 采用 `initInfra` → `buildRouter` → `runServer` 三段式组织，基础设施初始化、依赖注入、服务启动职责清晰分离。

@@ -63,6 +63,20 @@ func (_c *ProfileCreate) SetNillableBio(v *string) *ProfileCreate {
 	return _c
 }
 
+// SetBirthday sets the "birthday" field.
+func (_c *ProfileCreate) SetBirthday(v string) *ProfileCreate {
+	_c.mutation.SetBirthday(v)
+	return _c
+}
+
+// SetNillableBirthday sets the "birthday" field if the given value is not nil.
+func (_c *ProfileCreate) SetNillableBirthday(v *string) *ProfileCreate {
+	if v != nil {
+		_c.SetBirthday(*v)
+	}
+	return _c
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_c *ProfileCreate) SetUpdatedAt(v time.Time) *ProfileCreate {
 	_c.mutation.SetUpdatedAt(v)
@@ -141,6 +155,10 @@ func (_c *ProfileCreate) defaults() {
 		v := profile.DefaultBio
 		_c.mutation.SetBio(v)
 	}
+	if _, ok := _c.mutation.Birthday(); !ok {
+		v := profile.DefaultBirthday
+		_c.mutation.SetBirthday(v)
+	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		v := profile.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
@@ -171,6 +189,14 @@ func (_c *ProfileCreate) check() error {
 	if v, ok := _c.mutation.Bio(); ok {
 		if err := profile.BioValidator(v); err != nil {
 			return &ValidationError{Name: "bio", err: fmt.Errorf(`ent: validator failed for field "Profile.bio": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.Birthday(); !ok {
+		return &ValidationError{Name: "birthday", err: errors.New(`ent: missing required field "Profile.birthday"`)}
+	}
+	if v, ok := _c.mutation.Birthday(); ok {
+		if err := profile.BirthdayValidator(v); err != nil {
+			return &ValidationError{Name: "birthday", err: fmt.Errorf(`ent: validator failed for field "Profile.birthday": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
@@ -227,6 +253,10 @@ func (_c *ProfileCreate) createSpec() (*Profile, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Bio(); ok {
 		_spec.SetField(profile.FieldBio, field.TypeString, value)
 		_node.Bio = value
+	}
+	if value, ok := _c.mutation.Birthday(); ok {
+		_spec.SetField(profile.FieldBirthday, field.TypeString, value)
+		_node.Birthday = value
 	}
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(profile.FieldUpdatedAt, field.TypeTime, value)
