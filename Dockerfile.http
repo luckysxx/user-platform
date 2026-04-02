@@ -17,14 +17,18 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     CGO_ENABLED=0 GOOS=linux go build -o user_service ./cmd/http
 
 # ======== 运行阶段 ========
-FROM alpine:latest
+FROM alpine:3.21
 
-RUN apk --no-cache add ca-certificates tzdata
+RUN apk --no-cache add ca-certificates tzdata \
+    && addgroup -S appgroup && adduser -S appuser -G appgroup
+
 ENV TZ=Asia/Shanghai
 
 WORKDIR /app
+
 COPY --from=builder /app/user_service .
-COPY --from=builder /app/configs ./configs
+
+USER appuser
 
 EXPOSE 8081
 CMD ["./user_service"]

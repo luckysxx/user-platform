@@ -5,6 +5,8 @@ services:
       context: .
       dockerfile: Dockerfile.http
     # 不暴露端口到宿主机，只通过网关访问（网络隔离）
+    volumes:
+      - ./configs:/app/configs:ro
     environment:
       - APP_ENV=${APP_ENV:-development}
       - SERVER_PORT=8081
@@ -34,6 +36,8 @@ services:
       context: .
       dockerfile: Dockerfile.grpc
     # 不暴露端口到宿主机，只通过内网访问
+    volumes:
+      - ./configs:/app/configs:ro
     environment:
       - APP_ENV=${APP_ENV:-development}
       - USER_GRPC_PORT=9091
