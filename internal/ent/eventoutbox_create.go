@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -20,43 +21,57 @@ type EventOutboxCreate struct {
 	hooks    []Hook
 }
 
-// SetTopic sets the "topic" field.
-func (_c *EventOutboxCreate) SetTopic(v string) *EventOutboxCreate {
-	_c.mutation.SetTopic(v)
+// SetAggregatetype sets the "aggregatetype" field.
+func (_c *EventOutboxCreate) SetAggregatetype(v string) *EventOutboxCreate {
+	_c.mutation.SetAggregatetype(v)
+	return _c
+}
+
+// SetNillableAggregatetype sets the "aggregatetype" field if the given value is not nil.
+func (_c *EventOutboxCreate) SetNillableAggregatetype(v *string) *EventOutboxCreate {
+	if v != nil {
+		_c.SetAggregatetype(*v)
+	}
+	return _c
+}
+
+// SetAggregateid sets the "aggregateid" field.
+func (_c *EventOutboxCreate) SetAggregateid(v string) *EventOutboxCreate {
+	_c.mutation.SetAggregateid(v)
+	return _c
+}
+
+// SetNillableAggregateid sets the "aggregateid" field if the given value is not nil.
+func (_c *EventOutboxCreate) SetNillableAggregateid(v *string) *EventOutboxCreate {
+	if v != nil {
+		_c.SetAggregateid(*v)
+	}
+	return _c
+}
+
+// SetType sets the "type" field.
+func (_c *EventOutboxCreate) SetType(v string) *EventOutboxCreate {
+	_c.mutation.SetType(v)
+	return _c
+}
+
+// SetNillableType sets the "type" field if the given value is not nil.
+func (_c *EventOutboxCreate) SetNillableType(v *string) *EventOutboxCreate {
+	if v != nil {
+		_c.SetType(*v)
+	}
 	return _c
 }
 
 // SetPayload sets the "payload" field.
-func (_c *EventOutboxCreate) SetPayload(v []byte) *EventOutboxCreate {
+func (_c *EventOutboxCreate) SetPayload(v json.RawMessage) *EventOutboxCreate {
 	_c.mutation.SetPayload(v)
 	return _c
 }
 
-// SetStatus sets the "status" field.
-func (_c *EventOutboxCreate) SetStatus(v eventoutbox.Status) *EventOutboxCreate {
-	_c.mutation.SetStatus(v)
-	return _c
-}
-
-// SetNillableStatus sets the "status" field if the given value is not nil.
-func (_c *EventOutboxCreate) SetNillableStatus(v *eventoutbox.Status) *EventOutboxCreate {
-	if v != nil {
-		_c.SetStatus(*v)
-	}
-	return _c
-}
-
-// SetRetryCount sets the "retry_count" field.
-func (_c *EventOutboxCreate) SetRetryCount(v int) *EventOutboxCreate {
-	_c.mutation.SetRetryCount(v)
-	return _c
-}
-
-// SetNillableRetryCount sets the "retry_count" field if the given value is not nil.
-func (_c *EventOutboxCreate) SetNillableRetryCount(v *int) *EventOutboxCreate {
-	if v != nil {
-		_c.SetRetryCount(*v)
-	}
+// SetHeaders sets the "headers" field.
+func (_c *EventOutboxCreate) SetHeaders(v json.RawMessage) *EventOutboxCreate {
+	_c.mutation.SetHeaders(v)
 	return _c
 }
 
@@ -70,20 +85,6 @@ func (_c *EventOutboxCreate) SetCreatedAt(v time.Time) *EventOutboxCreate {
 func (_c *EventOutboxCreate) SetNillableCreatedAt(v *time.Time) *EventOutboxCreate {
 	if v != nil {
 		_c.SetCreatedAt(*v)
-	}
-	return _c
-}
-
-// SetUpdatedAt sets the "updated_at" field.
-func (_c *EventOutboxCreate) SetUpdatedAt(v time.Time) *EventOutboxCreate {
-	_c.mutation.SetUpdatedAt(v)
-	return _c
-}
-
-// SetNillableUpdatedAt sets the "updated_at" field if the given value is not nil.
-func (_c *EventOutboxCreate) SetNillableUpdatedAt(v *time.Time) *EventOutboxCreate {
-	if v != nil {
-		_c.SetUpdatedAt(*v)
 	}
 	return _c
 }
@@ -123,58 +124,19 @@ func (_c *EventOutboxCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *EventOutboxCreate) defaults() {
-	if _, ok := _c.mutation.Status(); !ok {
-		v := eventoutbox.DefaultStatus
-		_c.mutation.SetStatus(v)
-	}
-	if _, ok := _c.mutation.RetryCount(); !ok {
-		v := eventoutbox.DefaultRetryCount
-		_c.mutation.SetRetryCount(v)
-	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := eventoutbox.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
-	}
-	if _, ok := _c.mutation.UpdatedAt(); !ok {
-		v := eventoutbox.DefaultUpdatedAt()
-		_c.mutation.SetUpdatedAt(v)
 	}
 }
 
 // check runs all checks and user-defined validators on the builder.
 func (_c *EventOutboxCreate) check() error {
-	if _, ok := _c.mutation.Topic(); !ok {
-		return &ValidationError{Name: "topic", err: errors.New(`ent: missing required field "EventOutbox.topic"`)}
-	}
-	if v, ok := _c.mutation.Topic(); ok {
-		if err := eventoutbox.TopicValidator(v); err != nil {
-			return &ValidationError{Name: "topic", err: fmt.Errorf(`ent: validator failed for field "EventOutbox.topic": %w`, err)}
-		}
-	}
 	if _, ok := _c.mutation.Payload(); !ok {
 		return &ValidationError{Name: "payload", err: errors.New(`ent: missing required field "EventOutbox.payload"`)}
 	}
-	if v, ok := _c.mutation.Payload(); ok {
-		if err := eventoutbox.PayloadValidator(v); err != nil {
-			return &ValidationError{Name: "payload", err: fmt.Errorf(`ent: validator failed for field "EventOutbox.payload": %w`, err)}
-		}
-	}
-	if _, ok := _c.mutation.Status(); !ok {
-		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "EventOutbox.status"`)}
-	}
-	if v, ok := _c.mutation.Status(); ok {
-		if err := eventoutbox.StatusValidator(v); err != nil {
-			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "EventOutbox.status": %w`, err)}
-		}
-	}
-	if _, ok := _c.mutation.RetryCount(); !ok {
-		return &ValidationError{Name: "retry_count", err: errors.New(`ent: missing required field "EventOutbox.retry_count"`)}
-	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "EventOutbox.created_at"`)}
-	}
-	if _, ok := _c.mutation.UpdatedAt(); !ok {
-		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "EventOutbox.updated_at"`)}
 	}
 	return nil
 }
@@ -202,29 +164,29 @@ func (_c *EventOutboxCreate) createSpec() (*EventOutbox, *sqlgraph.CreateSpec) {
 		_node = &EventOutbox{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(eventoutbox.Table, sqlgraph.NewFieldSpec(eventoutbox.FieldID, field.TypeInt))
 	)
-	if value, ok := _c.mutation.Topic(); ok {
-		_spec.SetField(eventoutbox.FieldTopic, field.TypeString, value)
-		_node.Topic = value
+	if value, ok := _c.mutation.Aggregatetype(); ok {
+		_spec.SetField(eventoutbox.FieldAggregatetype, field.TypeString, value)
+		_node.Aggregatetype = &value
+	}
+	if value, ok := _c.mutation.Aggregateid(); ok {
+		_spec.SetField(eventoutbox.FieldAggregateid, field.TypeString, value)
+		_node.Aggregateid = &value
+	}
+	if value, ok := _c.mutation.GetType(); ok {
+		_spec.SetField(eventoutbox.FieldType, field.TypeString, value)
+		_node.Type = &value
 	}
 	if value, ok := _c.mutation.Payload(); ok {
-		_spec.SetField(eventoutbox.FieldPayload, field.TypeBytes, value)
+		_spec.SetField(eventoutbox.FieldPayload, field.TypeJSON, value)
 		_node.Payload = value
 	}
-	if value, ok := _c.mutation.Status(); ok {
-		_spec.SetField(eventoutbox.FieldStatus, field.TypeEnum, value)
-		_node.Status = value
-	}
-	if value, ok := _c.mutation.RetryCount(); ok {
-		_spec.SetField(eventoutbox.FieldRetryCount, field.TypeInt, value)
-		_node.RetryCount = value
+	if value, ok := _c.mutation.Headers(); ok {
+		_spec.SetField(eventoutbox.FieldHeaders, field.TypeJSON, value)
+		_node.Headers = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(eventoutbox.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
-	}
-	if value, ok := _c.mutation.UpdatedAt(); ok {
-		_spec.SetField(eventoutbox.FieldUpdatedAt, field.TypeTime, value)
-		_node.UpdatedAt = value
 	}
 	return _node, _spec
 }

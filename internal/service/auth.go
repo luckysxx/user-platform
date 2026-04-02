@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/luckysxx/common/crypto"
 	pkgerrs "github.com/luckysxx/common/errs"
+	commonlogger "github.com/luckysxx/common/logger"
 	"github.com/luckysxx/common/ratelimiter"
 	"github.com/luckysxx/user-platform/internal/auth"
 	"github.com/luckysxx/user-platform/internal/dberr"
@@ -68,7 +69,7 @@ func (s *authService) Login(ctx context.Context, req *servicecontract.LoginComma
 	limiterKey := fmt.Sprintf("rl:login:user:%s", req.Username)
 	if err := s.limiter.Allow(ctx, limiterKey, 5, 15*60*1000000000); err != nil { // 15分钟(纳秒)
 		if errors.Is(err, ratelimiter.ErrRateLimitExceeded) {
-			s.logger.Warn("防止暴力破解, 账号登录被限流", zap.String("username", req.Username))
+			commonlogger.Ctx(ctx, s.logger).Warn("防止暴力破解, 账号登录被限流", zap.String("username", req.Username))
 			return nil, ErrTooManyLoginAttempts
 		}
 		// 理论上 Fail-Open 机制不会走到这里，但为了严谨
@@ -220,6 +221,6 @@ func (s *authService) Logout(ctx context.Context, req *servicecontract.LogoutCom
 		s.session.DeleteTokenIndex(ctx, oldToken)
 	}
 
-	s.logger.Info("用户退出设备", zap.Int64("user_id", req.UserID), zap.String("device_id", req.DeviceID))
+	commonlogger.Ctx(ctx, s.logger).Info("用户退出设备", zap.Int64("user_id", req.UserID), zap.String("device_id", req.DeviceID))
 	return nil
 }

@@ -23,7 +23,6 @@ import (
 	"github.com/luckysxx/common/rpc"
 	"github.com/luckysxx/user-platform/internal/auth"
 	"github.com/luckysxx/user-platform/internal/ent"
-	"github.com/luckysxx/user-platform/internal/event"
 	"github.com/luckysxx/user-platform/internal/platform/config"
 	"github.com/luckysxx/user-platform/internal/platform/database"
 	"github.com/luckysxx/user-platform/internal/repository"
@@ -40,10 +39,9 @@ func main() {
 	cfg := config.LoadConfig()
 
 	// 初始化底层基础设施
-	entClient, redisClient, publisher := initInfra(cfg, log)
+	entClient, redisClient := initInfra(cfg, log)
 	defer entClient.Close()
 	defer redisClient.Close()
-	defer publisher.Close()
 
 	// 初始化 OpenTelemetry 链路追踪
 	otelShutdown, err := commonOtel.InitTracer(cfg.OTel.ServiceName, cfg.OTel.JaegerEndpoint)
@@ -56,7 +54,7 @@ func main() {
 	healthChecker := buildHealthChecker(entClient, redisClient)
 	grpcHealthServer := grpchealth.NewServer()
 	startHealthSync(healthChecker, grpcHealthServer, log)
-	userSvc, profileSvc, authSvc, _ := buildServices(cfg, entClient, redisClient, publisher, log)
+	userSvc, profileSvc, authSvc, _ := buildServices(cfg, entClient, redisClient, log)
 	grpcServer := transportgrpc.SetupServer(userSvc, profileSvc, authSvc, grpcHealthServer, log)
 	adminServer := buildAdminServer(cfg, healthChecker)
 
@@ -65,7 +63,7 @@ func main() {
 }
 
 // initInfra 初始化基础设施
-func initInfra(cfg *config.Config, log *zap.Logger) (*ent.Client, *redis.Client, event.Publisher) {
+func initInfra(cfg *config.Config, log *zap.Logger) (*ent.Client, *redis.Client) {
 	if err := rpc.InitIDGenClient(cfg.IDGenerator.Addr); err != nil {
 		log.Fatal("初始化 ID 生成器客户端失败", zap.Error(err))
 	}
@@ -76,17 +74,16 @@ func initInfra(cfg *config.Config, log *zap.Logger) (*ent.Client, *redis.Client,
 		Password: cfg.Redis.Password,
 		DB:       cfg.Redis.DB,
 	}, log)
-	publisher := event.NewKafkaPublisher(cfg.Kafka.Brokers, cfg.Kafka.TopicUserRegistered, log)
 
-	return entClient, redisClient, publisher
+	return entClient, redisClient
 }
 
 // buildServices 构建业务层依赖，返回 gRPC Server 所需的 Service 和 JWTManager
-func buildServices(cfg *config.Config, entClient *ent.Client, redisClient *redis.Client, publisher event.Publisher, log *zap.Logger) (service.UserService, service.ProfileService, service.AuthService, *auth.JWTManager) {
+func buildServices(cfg *config.Config, entClient *ent.Client, redisClient *redis.Client, log *zap.Logger) (service.UserService, service.ProfileService, service.AuthService, *auth.JWTManager) {
 	// Repositories
 	userRepo := repository.NewUserRepository(entClient)
 	profileRepo := repository.NewProfileRepository(entClient)
-	outboxRepo := repository.NewEventOutboxRepository(entClient, redisClient)
+	outboxRepo := repository.NewEventOutboxRepository(entClient)
 	tm := repository.NewTransactionManager(entClient)
 	sessionRepo := repository.NewRedisSessionRepo(redisClient)
 	appRepo := repository.NewAppRepository(entClient)
@@ -94,7 +91,7 @@ func buildServices(cfg *config.Config, entClient *ent.Client, redisClient *redis
 	// Domain Services
 	jwtManager := auth.NewJWTManager(cfg.JWT.Secret)
 	rateLim := ratelimiter.NewFixedWindowLimiter(redisClient, log)
-	userSvc := service.NewUserService(tm, userRepo, profileRepo, outboxRepo, publisher, log, cfg.Kafka.TopicUserRegistered)
+	userSvc := service.NewUserService(tm, userRepo, profileRepo, outboxRepo, log, cfg.Kafka.TopicUserRegistered)
 	profileSvc := service.NewProfileService(profileRepo, log)
 	authSvc := service.NewAuthService(userRepo, appRepo, sessionRepo, jwtManager, rateLim, log)
 

@@ -29,28 +29,10 @@ func init() {
 	app.AppNameValidator = appDescAppName.Validators[0].(func(string) error)
 	eventoutboxFields := schema.EventOutbox{}.Fields()
 	_ = eventoutboxFields
-	// eventoutboxDescTopic is the schema descriptor for topic field.
-	eventoutboxDescTopic := eventoutboxFields[0].Descriptor()
-	// eventoutbox.TopicValidator is a validator for the "topic" field. It is called by the builders before save.
-	eventoutbox.TopicValidator = eventoutboxDescTopic.Validators[0].(func(string) error)
-	// eventoutboxDescPayload is the schema descriptor for payload field.
-	eventoutboxDescPayload := eventoutboxFields[1].Descriptor()
-	// eventoutbox.PayloadValidator is a validator for the "payload" field. It is called by the builders before save.
-	eventoutbox.PayloadValidator = eventoutboxDescPayload.Validators[0].(func([]byte) error)
-	// eventoutboxDescRetryCount is the schema descriptor for retry_count field.
-	eventoutboxDescRetryCount := eventoutboxFields[3].Descriptor()
-	// eventoutbox.DefaultRetryCount holds the default value on creation for the retry_count field.
-	eventoutbox.DefaultRetryCount = eventoutboxDescRetryCount.Default.(int)
 	// eventoutboxDescCreatedAt is the schema descriptor for created_at field.
-	eventoutboxDescCreatedAt := eventoutboxFields[4].Descriptor()
+	eventoutboxDescCreatedAt := eventoutboxFields[5].Descriptor()
 	// eventoutbox.DefaultCreatedAt holds the default value on creation for the created_at field.
 	eventoutbox.DefaultCreatedAt = eventoutboxDescCreatedAt.Default.(func() time.Time)
-	// eventoutboxDescUpdatedAt is the schema descriptor for updated_at field.
-	eventoutboxDescUpdatedAt := eventoutboxFields[5].Descriptor()
-	// eventoutbox.DefaultUpdatedAt holds the default value on creation for the updated_at field.
-	eventoutbox.DefaultUpdatedAt = eventoutboxDescUpdatedAt.Default.(func() time.Time)
-	// eventoutbox.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
-	eventoutbox.UpdateDefaultUpdatedAt = eventoutboxDescUpdatedAt.UpdateDefault.(func() time.Time)
 	profileFields := schema.Profile{}.Fields()
 	_ = profileFields
 	// profileDescNickname is the schema descriptor for nickname field.

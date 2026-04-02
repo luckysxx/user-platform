@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -511,20 +512,21 @@ func (m *AppMutation) ResetEdge(name string) error {
 // EventOutboxMutation represents an operation that mutates the EventOutbox nodes in the graph.
 type EventOutboxMutation struct {
 	config
-	op             Op
-	typ            string
-	id             *int
-	topic          *string
-	payload        *[]byte
-	status         *eventoutbox.Status
-	retry_count    *int
-	addretry_count *int
-	created_at     *time.Time
-	updated_at     *time.Time
-	clearedFields  map[string]struct{}
-	done           bool
-	oldValue       func(context.Context) (*EventOutbox, error)
-	predicates     []predicate.EventOutbox
+	op            Op
+	typ           string
+	id            *int
+	aggregatetype *string
+	aggregateid   *string
+	_type         *string
+	payload       *json.RawMessage
+	appendpayload json.RawMessage
+	headers       *json.RawMessage
+	appendheaders json.RawMessage
+	created_at    *time.Time
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*EventOutbox, error)
+	predicates    []predicate.EventOutbox
 }
 
 var _ ent.Mutation = (*EventOutboxMutation)(nil)
@@ -625,49 +627,161 @@ func (m *EventOutboxMutation) IDs(ctx context.Context) ([]int, error) {
 	}
 }
 
-// SetTopic sets the "topic" field.
-func (m *EventOutboxMutation) SetTopic(s string) {
-	m.topic = &s
+// SetAggregatetype sets the "aggregatetype" field.
+func (m *EventOutboxMutation) SetAggregatetype(s string) {
+	m.aggregatetype = &s
 }
 
-// Topic returns the value of the "topic" field in the mutation.
-func (m *EventOutboxMutation) Topic() (r string, exists bool) {
-	v := m.topic
+// Aggregatetype returns the value of the "aggregatetype" field in the mutation.
+func (m *EventOutboxMutation) Aggregatetype() (r string, exists bool) {
+	v := m.aggregatetype
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldTopic returns the old "topic" field's value of the EventOutbox entity.
+// OldAggregatetype returns the old "aggregatetype" field's value of the EventOutbox entity.
 // If the EventOutbox object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *EventOutboxMutation) OldTopic(ctx context.Context) (v string, err error) {
+func (m *EventOutboxMutation) OldAggregatetype(ctx context.Context) (v *string, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldTopic is only allowed on UpdateOne operations")
+		return v, errors.New("OldAggregatetype is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldTopic requires an ID field in the mutation")
+		return v, errors.New("OldAggregatetype requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldTopic: %w", err)
+		return v, fmt.Errorf("querying old value for OldAggregatetype: %w", err)
 	}
-	return oldValue.Topic, nil
+	return oldValue.Aggregatetype, nil
 }
 
-// ResetTopic resets all changes to the "topic" field.
-func (m *EventOutboxMutation) ResetTopic() {
-	m.topic = nil
+// ClearAggregatetype clears the value of the "aggregatetype" field.
+func (m *EventOutboxMutation) ClearAggregatetype() {
+	m.aggregatetype = nil
+	m.clearedFields[eventoutbox.FieldAggregatetype] = struct{}{}
+}
+
+// AggregatetypeCleared returns if the "aggregatetype" field was cleared in this mutation.
+func (m *EventOutboxMutation) AggregatetypeCleared() bool {
+	_, ok := m.clearedFields[eventoutbox.FieldAggregatetype]
+	return ok
+}
+
+// ResetAggregatetype resets all changes to the "aggregatetype" field.
+func (m *EventOutboxMutation) ResetAggregatetype() {
+	m.aggregatetype = nil
+	delete(m.clearedFields, eventoutbox.FieldAggregatetype)
+}
+
+// SetAggregateid sets the "aggregateid" field.
+func (m *EventOutboxMutation) SetAggregateid(s string) {
+	m.aggregateid = &s
+}
+
+// Aggregateid returns the value of the "aggregateid" field in the mutation.
+func (m *EventOutboxMutation) Aggregateid() (r string, exists bool) {
+	v := m.aggregateid
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAggregateid returns the old "aggregateid" field's value of the EventOutbox entity.
+// If the EventOutbox object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EventOutboxMutation) OldAggregateid(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAggregateid is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAggregateid requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAggregateid: %w", err)
+	}
+	return oldValue.Aggregateid, nil
+}
+
+// ClearAggregateid clears the value of the "aggregateid" field.
+func (m *EventOutboxMutation) ClearAggregateid() {
+	m.aggregateid = nil
+	m.clearedFields[eventoutbox.FieldAggregateid] = struct{}{}
+}
+
+// AggregateidCleared returns if the "aggregateid" field was cleared in this mutation.
+func (m *EventOutboxMutation) AggregateidCleared() bool {
+	_, ok := m.clearedFields[eventoutbox.FieldAggregateid]
+	return ok
+}
+
+// ResetAggregateid resets all changes to the "aggregateid" field.
+func (m *EventOutboxMutation) ResetAggregateid() {
+	m.aggregateid = nil
+	delete(m.clearedFields, eventoutbox.FieldAggregateid)
+}
+
+// SetType sets the "type" field.
+func (m *EventOutboxMutation) SetType(s string) {
+	m._type = &s
+}
+
+// GetType returns the value of the "type" field in the mutation.
+func (m *EventOutboxMutation) GetType() (r string, exists bool) {
+	v := m._type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldType returns the old "type" field's value of the EventOutbox entity.
+// If the EventOutbox object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EventOutboxMutation) OldType(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldType: %w", err)
+	}
+	return oldValue.Type, nil
+}
+
+// ClearType clears the value of the "type" field.
+func (m *EventOutboxMutation) ClearType() {
+	m._type = nil
+	m.clearedFields[eventoutbox.FieldType] = struct{}{}
+}
+
+// TypeCleared returns if the "type" field was cleared in this mutation.
+func (m *EventOutboxMutation) TypeCleared() bool {
+	_, ok := m.clearedFields[eventoutbox.FieldType]
+	return ok
+}
+
+// ResetType resets all changes to the "type" field.
+func (m *EventOutboxMutation) ResetType() {
+	m._type = nil
+	delete(m.clearedFields, eventoutbox.FieldType)
 }
 
 // SetPayload sets the "payload" field.
-func (m *EventOutboxMutation) SetPayload(b []byte) {
-	m.payload = &b
+func (m *EventOutboxMutation) SetPayload(jm json.RawMessage) {
+	m.payload = &jm
+	m.appendpayload = nil
 }
 
 // Payload returns the value of the "payload" field in the mutation.
-func (m *EventOutboxMutation) Payload() (r []byte, exists bool) {
+func (m *EventOutboxMutation) Payload() (r json.RawMessage, exists bool) {
 	v := m.payload
 	if v == nil {
 		return
@@ -678,7 +792,7 @@ func (m *EventOutboxMutation) Payload() (r []byte, exists bool) {
 // OldPayload returns the old "payload" field's value of the EventOutbox entity.
 // If the EventOutbox object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *EventOutboxMutation) OldPayload(ctx context.Context) (v []byte, err error) {
+func (m *EventOutboxMutation) OldPayload(ctx context.Context) (v json.RawMessage, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldPayload is only allowed on UpdateOne operations")
 	}
@@ -692,101 +806,88 @@ func (m *EventOutboxMutation) OldPayload(ctx context.Context) (v []byte, err err
 	return oldValue.Payload, nil
 }
 
+// AppendPayload adds jm to the "payload" field.
+func (m *EventOutboxMutation) AppendPayload(jm json.RawMessage) {
+	m.appendpayload = append(m.appendpayload, jm...)
+}
+
+// AppendedPayload returns the list of values that were appended to the "payload" field in this mutation.
+func (m *EventOutboxMutation) AppendedPayload() (json.RawMessage, bool) {
+	if len(m.appendpayload) == 0 {
+		return nil, false
+	}
+	return m.appendpayload, true
+}
+
 // ResetPayload resets all changes to the "payload" field.
 func (m *EventOutboxMutation) ResetPayload() {
 	m.payload = nil
+	m.appendpayload = nil
 }
 
-// SetStatus sets the "status" field.
-func (m *EventOutboxMutation) SetStatus(e eventoutbox.Status) {
-	m.status = &e
+// SetHeaders sets the "headers" field.
+func (m *EventOutboxMutation) SetHeaders(jm json.RawMessage) {
+	m.headers = &jm
+	m.appendheaders = nil
 }
 
-// Status returns the value of the "status" field in the mutation.
-func (m *EventOutboxMutation) Status() (r eventoutbox.Status, exists bool) {
-	v := m.status
+// Headers returns the value of the "headers" field in the mutation.
+func (m *EventOutboxMutation) Headers() (r json.RawMessage, exists bool) {
+	v := m.headers
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldStatus returns the old "status" field's value of the EventOutbox entity.
+// OldHeaders returns the old "headers" field's value of the EventOutbox entity.
 // If the EventOutbox object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *EventOutboxMutation) OldStatus(ctx context.Context) (v eventoutbox.Status, err error) {
+func (m *EventOutboxMutation) OldHeaders(ctx context.Context) (v json.RawMessage, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+		return v, errors.New("OldHeaders is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldStatus requires an ID field in the mutation")
+		return v, errors.New("OldHeaders requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+		return v, fmt.Errorf("querying old value for OldHeaders: %w", err)
 	}
-	return oldValue.Status, nil
+	return oldValue.Headers, nil
 }
 
-// ResetStatus resets all changes to the "status" field.
-func (m *EventOutboxMutation) ResetStatus() {
-	m.status = nil
+// AppendHeaders adds jm to the "headers" field.
+func (m *EventOutboxMutation) AppendHeaders(jm json.RawMessage) {
+	m.appendheaders = append(m.appendheaders, jm...)
 }
 
-// SetRetryCount sets the "retry_count" field.
-func (m *EventOutboxMutation) SetRetryCount(i int) {
-	m.retry_count = &i
-	m.addretry_count = nil
+// AppendedHeaders returns the list of values that were appended to the "headers" field in this mutation.
+func (m *EventOutboxMutation) AppendedHeaders() (json.RawMessage, bool) {
+	if len(m.appendheaders) == 0 {
+		return nil, false
+	}
+	return m.appendheaders, true
 }
 
-// RetryCount returns the value of the "retry_count" field in the mutation.
-func (m *EventOutboxMutation) RetryCount() (r int, exists bool) {
-	v := m.retry_count
-	if v == nil {
-		return
-	}
-	return *v, true
+// ClearHeaders clears the value of the "headers" field.
+func (m *EventOutboxMutation) ClearHeaders() {
+	m.headers = nil
+	m.appendheaders = nil
+	m.clearedFields[eventoutbox.FieldHeaders] = struct{}{}
 }
 
-// OldRetryCount returns the old "retry_count" field's value of the EventOutbox entity.
-// If the EventOutbox object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *EventOutboxMutation) OldRetryCount(ctx context.Context) (v int, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldRetryCount is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldRetryCount requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldRetryCount: %w", err)
-	}
-	return oldValue.RetryCount, nil
+// HeadersCleared returns if the "headers" field was cleared in this mutation.
+func (m *EventOutboxMutation) HeadersCleared() bool {
+	_, ok := m.clearedFields[eventoutbox.FieldHeaders]
+	return ok
 }
 
-// AddRetryCount adds i to the "retry_count" field.
-func (m *EventOutboxMutation) AddRetryCount(i int) {
-	if m.addretry_count != nil {
-		*m.addretry_count += i
-	} else {
-		m.addretry_count = &i
-	}
-}
-
-// AddedRetryCount returns the value that was added to the "retry_count" field in this mutation.
-func (m *EventOutboxMutation) AddedRetryCount() (r int, exists bool) {
-	v := m.addretry_count
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// ResetRetryCount resets all changes to the "retry_count" field.
-func (m *EventOutboxMutation) ResetRetryCount() {
-	m.retry_count = nil
-	m.addretry_count = nil
+// ResetHeaders resets all changes to the "headers" field.
+func (m *EventOutboxMutation) ResetHeaders() {
+	m.headers = nil
+	m.appendheaders = nil
+	delete(m.clearedFields, eventoutbox.FieldHeaders)
 }
 
 // SetCreatedAt sets the "created_at" field.
@@ -825,42 +926,6 @@ func (m *EventOutboxMutation) ResetCreatedAt() {
 	m.created_at = nil
 }
 
-// SetUpdatedAt sets the "updated_at" field.
-func (m *EventOutboxMutation) SetUpdatedAt(t time.Time) {
-	m.updated_at = &t
-}
-
-// UpdatedAt returns the value of the "updated_at" field in the mutation.
-func (m *EventOutboxMutation) UpdatedAt() (r time.Time, exists bool) {
-	v := m.updated_at
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldUpdatedAt returns the old "updated_at" field's value of the EventOutbox entity.
-// If the EventOutbox object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *EventOutboxMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
-	}
-	return oldValue.UpdatedAt, nil
-}
-
-// ResetUpdatedAt resets all changes to the "updated_at" field.
-func (m *EventOutboxMutation) ResetUpdatedAt() {
-	m.updated_at = nil
-}
-
 // Where appends a list predicates to the EventOutboxMutation builder.
 func (m *EventOutboxMutation) Where(ps ...predicate.EventOutbox) {
 	m.predicates = append(m.predicates, ps...)
@@ -896,23 +961,23 @@ func (m *EventOutboxMutation) Type() string {
 // AddedFields().
 func (m *EventOutboxMutation) Fields() []string {
 	fields := make([]string, 0, 6)
-	if m.topic != nil {
-		fields = append(fields, eventoutbox.FieldTopic)
+	if m.aggregatetype != nil {
+		fields = append(fields, eventoutbox.FieldAggregatetype)
+	}
+	if m.aggregateid != nil {
+		fields = append(fields, eventoutbox.FieldAggregateid)
+	}
+	if m._type != nil {
+		fields = append(fields, eventoutbox.FieldType)
 	}
 	if m.payload != nil {
 		fields = append(fields, eventoutbox.FieldPayload)
 	}
-	if m.status != nil {
-		fields = append(fields, eventoutbox.FieldStatus)
-	}
-	if m.retry_count != nil {
-		fields = append(fields, eventoutbox.FieldRetryCount)
+	if m.headers != nil {
+		fields = append(fields, eventoutbox.FieldHeaders)
 	}
 	if m.created_at != nil {
 		fields = append(fields, eventoutbox.FieldCreatedAt)
-	}
-	if m.updated_at != nil {
-		fields = append(fields, eventoutbox.FieldUpdatedAt)
 	}
 	return fields
 }
@@ -922,18 +987,18 @@ func (m *EventOutboxMutation) Fields() []string {
 // schema.
 func (m *EventOutboxMutation) Field(name string) (ent.Value, bool) {
 	switch name {
-	case eventoutbox.FieldTopic:
-		return m.Topic()
+	case eventoutbox.FieldAggregatetype:
+		return m.Aggregatetype()
+	case eventoutbox.FieldAggregateid:
+		return m.Aggregateid()
+	case eventoutbox.FieldType:
+		return m.GetType()
 	case eventoutbox.FieldPayload:
 		return m.Payload()
-	case eventoutbox.FieldStatus:
-		return m.Status()
-	case eventoutbox.FieldRetryCount:
-		return m.RetryCount()
+	case eventoutbox.FieldHeaders:
+		return m.Headers()
 	case eventoutbox.FieldCreatedAt:
 		return m.CreatedAt()
-	case eventoutbox.FieldUpdatedAt:
-		return m.UpdatedAt()
 	}
 	return nil, false
 }
@@ -943,18 +1008,18 @@ func (m *EventOutboxMutation) Field(name string) (ent.Value, bool) {
 // database failed.
 func (m *EventOutboxMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
 	switch name {
-	case eventoutbox.FieldTopic:
-		return m.OldTopic(ctx)
+	case eventoutbox.FieldAggregatetype:
+		return m.OldAggregatetype(ctx)
+	case eventoutbox.FieldAggregateid:
+		return m.OldAggregateid(ctx)
+	case eventoutbox.FieldType:
+		return m.OldType(ctx)
 	case eventoutbox.FieldPayload:
 		return m.OldPayload(ctx)
-	case eventoutbox.FieldStatus:
-		return m.OldStatus(ctx)
-	case eventoutbox.FieldRetryCount:
-		return m.OldRetryCount(ctx)
+	case eventoutbox.FieldHeaders:
+		return m.OldHeaders(ctx)
 	case eventoutbox.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
-	case eventoutbox.FieldUpdatedAt:
-		return m.OldUpdatedAt(ctx)
 	}
 	return nil, fmt.Errorf("unknown EventOutbox field %s", name)
 }
@@ -964,33 +1029,40 @@ func (m *EventOutboxMutation) OldField(ctx context.Context, name string) (ent.Va
 // type.
 func (m *EventOutboxMutation) SetField(name string, value ent.Value) error {
 	switch name {
-	case eventoutbox.FieldTopic:
+	case eventoutbox.FieldAggregatetype:
 		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetTopic(v)
+		m.SetAggregatetype(v)
+		return nil
+	case eventoutbox.FieldAggregateid:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAggregateid(v)
+		return nil
+	case eventoutbox.FieldType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetType(v)
 		return nil
 	case eventoutbox.FieldPayload:
-		v, ok := value.([]byte)
+		v, ok := value.(json.RawMessage)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPayload(v)
 		return nil
-	case eventoutbox.FieldStatus:
-		v, ok := value.(eventoutbox.Status)
+	case eventoutbox.FieldHeaders:
+		v, ok := value.(json.RawMessage)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetStatus(v)
-		return nil
-	case eventoutbox.FieldRetryCount:
-		v, ok := value.(int)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetRetryCount(v)
+		m.SetHeaders(v)
 		return nil
 	case eventoutbox.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -999,13 +1071,6 @@ func (m *EventOutboxMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetCreatedAt(v)
 		return nil
-	case eventoutbox.FieldUpdatedAt:
-		v, ok := value.(time.Time)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetUpdatedAt(v)
-		return nil
 	}
 	return fmt.Errorf("unknown EventOutbox field %s", name)
 }
@@ -1013,21 +1078,13 @@ func (m *EventOutboxMutation) SetField(name string, value ent.Value) error {
 // AddedFields returns all numeric fields that were incremented/decremented during
 // this mutation.
 func (m *EventOutboxMutation) AddedFields() []string {
-	var fields []string
-	if m.addretry_count != nil {
-		fields = append(fields, eventoutbox.FieldRetryCount)
-	}
-	return fields
+	return nil
 }
 
 // AddedField returns the numeric value that was incremented/decremented on a field
 // with the given name. The second boolean return value indicates that this field
 // was not set, or was not defined in the schema.
 func (m *EventOutboxMutation) AddedField(name string) (ent.Value, bool) {
-	switch name {
-	case eventoutbox.FieldRetryCount:
-		return m.AddedRetryCount()
-	}
 	return nil, false
 }
 
@@ -1036,13 +1093,6 @@ func (m *EventOutboxMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *EventOutboxMutation) AddField(name string, value ent.Value) error {
 	switch name {
-	case eventoutbox.FieldRetryCount:
-		v, ok := value.(int)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.AddRetryCount(v)
-		return nil
 	}
 	return fmt.Errorf("unknown EventOutbox numeric field %s", name)
 }
@@ -1050,7 +1100,20 @@ func (m *EventOutboxMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *EventOutboxMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(eventoutbox.FieldAggregatetype) {
+		fields = append(fields, eventoutbox.FieldAggregatetype)
+	}
+	if m.FieldCleared(eventoutbox.FieldAggregateid) {
+		fields = append(fields, eventoutbox.FieldAggregateid)
+	}
+	if m.FieldCleared(eventoutbox.FieldType) {
+		fields = append(fields, eventoutbox.FieldType)
+	}
+	if m.FieldCleared(eventoutbox.FieldHeaders) {
+		fields = append(fields, eventoutbox.FieldHeaders)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -1063,6 +1126,20 @@ func (m *EventOutboxMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *EventOutboxMutation) ClearField(name string) error {
+	switch name {
+	case eventoutbox.FieldAggregatetype:
+		m.ClearAggregatetype()
+		return nil
+	case eventoutbox.FieldAggregateid:
+		m.ClearAggregateid()
+		return nil
+	case eventoutbox.FieldType:
+		m.ClearType()
+		return nil
+	case eventoutbox.FieldHeaders:
+		m.ClearHeaders()
+		return nil
+	}
 	return fmt.Errorf("unknown EventOutbox nullable field %s", name)
 }
 
@@ -1070,23 +1147,23 @@ func (m *EventOutboxMutation) ClearField(name string) error {
 // It returns an error if the field is not defined in the schema.
 func (m *EventOutboxMutation) ResetField(name string) error {
 	switch name {
-	case eventoutbox.FieldTopic:
-		m.ResetTopic()
+	case eventoutbox.FieldAggregatetype:
+		m.ResetAggregatetype()
+		return nil
+	case eventoutbox.FieldAggregateid:
+		m.ResetAggregateid()
+		return nil
+	case eventoutbox.FieldType:
+		m.ResetType()
 		return nil
 	case eventoutbox.FieldPayload:
 		m.ResetPayload()
 		return nil
-	case eventoutbox.FieldStatus:
-		m.ResetStatus()
-		return nil
-	case eventoutbox.FieldRetryCount:
-		m.ResetRetryCount()
+	case eventoutbox.FieldHeaders:
+		m.ResetHeaders()
 		return nil
 	case eventoutbox.FieldCreatedAt:
 		m.ResetCreatedAt()
-		return nil
-	case eventoutbox.FieldUpdatedAt:
-		m.ResetUpdatedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown EventOutbox field %s", name)

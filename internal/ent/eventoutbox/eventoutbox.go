@@ -3,7 +3,6 @@
 package eventoutbox
 
 import (
-	"fmt"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -14,18 +13,18 @@ const (
 	Label = "event_outbox"
 	// FieldID holds the string denoting the id field in the database.
 	FieldID = "id"
-	// FieldTopic holds the string denoting the topic field in the database.
-	FieldTopic = "topic"
+	// FieldAggregatetype holds the string denoting the aggregatetype field in the database.
+	FieldAggregatetype = "aggregatetype"
+	// FieldAggregateid holds the string denoting the aggregateid field in the database.
+	FieldAggregateid = "aggregateid"
+	// FieldType holds the string denoting the type field in the database.
+	FieldType = "type"
 	// FieldPayload holds the string denoting the payload field in the database.
 	FieldPayload = "payload"
-	// FieldStatus holds the string denoting the status field in the database.
-	FieldStatus = "status"
-	// FieldRetryCount holds the string denoting the retry_count field in the database.
-	FieldRetryCount = "retry_count"
+	// FieldHeaders holds the string denoting the headers field in the database.
+	FieldHeaders = "headers"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
-	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
-	FieldUpdatedAt = "updated_at"
 	// Table holds the table name of the eventoutbox in the database.
 	Table = "event_outboxes"
 )
@@ -33,12 +32,12 @@ const (
 // Columns holds all SQL columns for eventoutbox fields.
 var Columns = []string{
 	FieldID,
-	FieldTopic,
+	FieldAggregatetype,
+	FieldAggregateid,
+	FieldType,
 	FieldPayload,
-	FieldStatus,
-	FieldRetryCount,
+	FieldHeaders,
 	FieldCreatedAt,
-	FieldUpdatedAt,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -52,46 +51,9 @@ func ValidColumn(column string) bool {
 }
 
 var (
-	// TopicValidator is a validator for the "topic" field. It is called by the builders before save.
-	TopicValidator func(string) error
-	// PayloadValidator is a validator for the "payload" field. It is called by the builders before save.
-	PayloadValidator func([]byte) error
-	// DefaultRetryCount holds the default value on creation for the "retry_count" field.
-	DefaultRetryCount int
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
-	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
-	DefaultUpdatedAt func() time.Time
-	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
-	UpdateDefaultUpdatedAt func() time.Time
 )
-
-// Status defines the type for the "status" enum field.
-type Status string
-
-// StatusPending is the default value of the Status enum.
-const DefaultStatus = StatusPending
-
-// Status values.
-const (
-	StatusPending Status = "pending"
-	StatusSuccess Status = "success"
-	StatusFailed  Status = "failed"
-)
-
-func (s Status) String() string {
-	return string(s)
-}
-
-// StatusValidator is a validator for the "status" field enum values. It is called by the builders before save.
-func StatusValidator(s Status) error {
-	switch s {
-	case StatusPending, StatusSuccess, StatusFailed:
-		return nil
-	default:
-		return fmt.Errorf("eventoutbox: invalid enum value for status field: %q", s)
-	}
-}
 
 // OrderOption defines the ordering options for the EventOutbox queries.
 type OrderOption func(*sql.Selector)
@@ -101,27 +63,22 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldID, opts...).ToFunc()
 }
 
-// ByTopic orders the results by the topic field.
-func ByTopic(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldTopic, opts...).ToFunc()
+// ByAggregatetype orders the results by the aggregatetype field.
+func ByAggregatetype(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAggregatetype, opts...).ToFunc()
 }
 
-// ByStatus orders the results by the status field.
-func ByStatus(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+// ByAggregateid orders the results by the aggregateid field.
+func ByAggregateid(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAggregateid, opts...).ToFunc()
 }
 
-// ByRetryCount orders the results by the retry_count field.
-func ByRetryCount(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldRetryCount, opts...).ToFunc()
+// ByType orders the results by the type field.
+func ByType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldType, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.
 func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
-}
-
-// ByUpdatedAt orders the results by the updated_at field.
-func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
 }

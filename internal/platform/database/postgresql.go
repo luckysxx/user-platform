@@ -30,6 +30,10 @@ func InitEntClient(driver, source string, autoMigrate bool, log *zap.Logger) *en
 	client := ent.NewClient(ent.Driver(drv))
 
 	if autoMigrate {
+		if err := migrateLegacyOutboxJSONColumns(context.Background(), drv); err != nil {
+			log.Fatal("迁移 event_outboxes JSON 列失败", zap.Error(err))
+			return nil
+		}
 		if err := client.Schema.Create(
 			context.Background(),
 			migrate.WithDropIndex(true),
@@ -45,4 +49,42 @@ func InitEntClient(driver, source string, autoMigrate bool, log *zap.Logger) *en
 
 	log.Info("成功初始化 Ent 客户端")
 	return client
+}
+
+func migrateLegacyOutboxJSONColumns(ctx context.Context, drv *sql.Driver) error {
+	query := `
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'event_outboxes'
+      AND column_name = 'payload'
+      AND udt_name = 'bytea'
+  ) THEN
+    ALTER TABLE public.event_outboxes
+      ALTER COLUMN payload TYPE jsonb
+      USING convert_from(payload, 'UTF8')::jsonb;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'event_outboxes'
+      AND column_name = 'headers'
+      AND udt_name = 'bytea'
+  ) THEN
+    ALTER TABLE public.event_outboxes
+      ALTER COLUMN headers TYPE jsonb
+      USING CASE
+        WHEN headers IS NULL THEN NULL
+        ELSE convert_from(headers, 'UTF8')::jsonb
+      END;
+  END IF;
+END $$;
+`
+	_, err := drv.ExecContext(ctx, query)
+	return err
 }

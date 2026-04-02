@@ -9,7 +9,6 @@ Go 微服务中台，提供统一账号注册、多应用登录鉴权、Session 
 - **Session 管理**：设备级 Session 追踪、登出、Token 轮换刷新
 - **事件驱动**：Transactional Outbox 模式保证注册事件可靠投递至 Kafka
 - **数据同步**：结合 Debezium CDC 实现 PostgreSQL 变更数据非侵入式同步至下游
-- **异步 Worker**：OutboxWorker 后台轮询 pending 事件，自动投递 Kafka 并更新状态
 - **基础设施**：基于 `common` 组件库实现 Redis / PostgreSQL 统一连接池管理与 OTel 链路追踪
 - **双协议**：HTTP (Gin) + gRPC (grpc-go) 共享同一套 Service 层
 
@@ -33,7 +32,7 @@ Go 微服务中台，提供统一账号注册、多应用登录鉴权、Session 
 
 ```text
 ├── cmd/
-│   ├── http/main.go              # HTTP 入口（含 OutboxWorker）
+│   ├── http/main.go              # HTTP 入口
 │   └── grpc/main.go              # gRPC 入口
 ├── internal/
 │   ├── service/                   # 业务逻辑（注册、登录、鉴权）
@@ -41,8 +40,6 @@ Go 微服务中台，提供统一账号注册、多应用登录鉴权、Session 
 │   ├── transport/
 │   │   ├── http/                  # Gin 路由 + Handler
 │   │   └── grpc/                  # gRPC Server 实现
-│   ├── worker/outbox_worker.go    # Outbox 异步投递 Worker
-│   ├── event/kafka.go             # Kafka 生产者
 │   ├── ent/                       # Ent 生成代码 + Schema
 │   └── platform/
 │       ├── config/                # Viper 配置加载
@@ -141,13 +138,13 @@ grpcurl -plaintext -d '{"username":"alice123","password":"Password123","app_code
 ## 架构亮点
 
 ### Transactional Outbox 模式
-注册时在同一个数据库事务中写入 `users` 表和 `event_outboxes` 表，OutboxWorker 后台轮询 pending 事件投递 Kafka，保证数据一致性。
+注册时在同一个数据库事务中写入 `users` 表和 `event_outboxes` 表，由 Debezium CDC 监听 Outbox 表并转发 Kafka，保证数据一致性与低业务侵入。
 
 ### Kafka Topic 命名约定
 统一使用全小写 + 点分隔风格，例如 `user.registered`、`user.deleted`。不要混用 `UserRegistered`、`user_registered` 这类 PascalCase 或下划线风格，避免 Kafka 因自动建 Topic 生成多份语义重复的主题。
 
-### Kafka 生产治理
-共享事件契约统一收敛在 `common/mq` 中。Producer 默认关闭 Kafka 自动建 Topic，Topic 需要提前创建；共享事件消息体需要携带 `version` 字段，当前 `user.registered` 使用 `v1`。
+### 事件契约治理
+共享事件契约统一收敛在 `common/mq` 中。事件类型与 Topic 统一使用全小写 + 点分隔风格，便于 Outbox、Debezium 和下游消费者保持一致语义；共享事件消息体建议显式携带 `version` 字段，便于后续平滑演进。
 
 ### Bootstrap 三段式入口
 `main.go` 采用 `initInfra` → `buildRouter` → `runServer` 三段式组织，基础设施初始化、依赖注入、服务启动职责清晰分离。

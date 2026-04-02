@@ -1,6 +1,7 @@
 package handler
 
 import (
+	commonlogger "github.com/luckysxx/common/logger"
 	"github.com/luckysxx/user-platform/internal/service"
 	servicecontract "github.com/luckysxx/user-platform/internal/service/contract"
 	httpdto "github.com/luckysxx/user-platform/internal/transport/http/dto"
@@ -36,7 +37,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		// 使用 validator 翻译验证错误为友好提示
 		errMsg := validator.TranslateValidationError(err)
-		h.logger.Warn("参数验证失败", zap.Error(err), zap.String("message", errMsg))
+		commonlogger.Ctx(c.Request.Context(), h.logger).Warn("参数验证失败", zap.Error(err), zap.String("message", errMsg))
 		response.BadRequest(c, errMsg)
 		return
 	}
@@ -47,7 +48,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 		Password: req.Password,
 	})
 	if err != nil {
-		h.logger.Error("用户注册失败", zap.Error(err))
+		commonlogger.Ctx(c.Request.Context(), h.logger).Error("用户注册失败", zap.Error(err))
 		response.Error(c, httperrs.ConvertToCustomError(err))
 		return
 	}
@@ -71,7 +72,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		// 使用 validator 翻译验证错误为友好提示
 		errMsg := validator.TranslateValidationError(err)
-		h.logger.Warn("参数验证失败", zap.Error(err), zap.String("message", errMsg))
+		commonlogger.Ctx(c.Request.Context(), h.logger).Warn("参数验证失败", zap.Error(err), zap.String("message", errMsg))
 		response.BadRequest(c, errMsg)
 		return
 	}
@@ -82,7 +83,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 		AppCode:  req.AppCode,
 	})
 	if err != nil {
-		h.logger.Error("用户登录失败", zap.Error(err))
+		commonlogger.Ctx(c.Request.Context(), h.logger).Error("用户登录失败", zap.Error(err))
 		// 这里可以直接抛出，因为底层 Service 已经是 Domain Error 了
 		response.Error(c, httperrs.ConvertToCustomError(err))
 		return
@@ -99,7 +100,7 @@ func (h *UserHandler) RefreshToken(c *gin.Context) {
 	var req httpdto.RefreshTokenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errMsg := validator.TranslateValidationError(err)
-		h.logger.Warn("参数验证失败", zap.Error(err), zap.String("message", errMsg))
+		commonlogger.Ctx(c.Request.Context(), h.logger).Warn("参数验证失败", zap.Error(err), zap.String("message", errMsg))
 		response.BadRequest(c, errMsg)
 		return
 	}
@@ -108,7 +109,7 @@ func (h *UserHandler) RefreshToken(c *gin.Context) {
 		Token: req.Token,
 	})
 	if err != nil {
-		h.logger.Error("刷新 Token 失败", zap.Error(err))
+		commonlogger.Ctx(c.Request.Context(), h.logger).Error("刷新 Token 失败", zap.Error(err))
 		response.Error(c, httperrs.ConvertToCustomError(err))
 		return
 	}
@@ -130,7 +131,7 @@ func (h *UserHandler) Logout(c *gin.Context) {
 	var req httpdto.LogoutRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errMsg := validator.TranslateValidationError(err)
-		h.logger.Warn("参数验证失败", zap.Error(err), zap.String("message", errMsg))
+		commonlogger.Ctx(c.Request.Context(), h.logger).Warn("参数验证失败", zap.Error(err), zap.String("message", errMsg))
 		response.BadRequest(c, errMsg)
 		return
 	}
@@ -147,7 +148,7 @@ func (h *UserHandler) Logout(c *gin.Context) {
 		DeviceID: req.DeviceID,
 	})
 	if err != nil {
-		h.logger.Error("登出失败", zap.Error(err))
+		commonlogger.Ctx(c.Request.Context(), h.logger).Error("登出失败", zap.Error(err))
 		response.Error(c, err)
 		return
 	}

@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -17,18 +18,18 @@ type EventOutbox struct {
 	config `json:"-"`
 	// ID of the ent.
 	ID int `json:"id,omitempty"`
-	// 消息主题
-	Topic string `json:"topic,omitempty"`
-	// 消息体
-	Payload []byte `json:"payload,omitempty"`
-	// 消息状态
-	Status eventoutbox.Status `json:"status,omitempty"`
-	// 重试次数
-	RetryCount int `json:"retry_count,omitempty"`
-	// 创建时间
-	CreatedAt time.Time `json:"created_at,omitempty"`
-	// 更新时间
-	UpdatedAt    time.Time `json:"updated_at,omitempty"`
+	// 聚合类型，如 user / paste；主要用于表达这条事件属于哪个聚合
+	Aggregatetype *string `json:"aggregatetype,omitempty"`
+	// 聚合根 ID，如 userID / pasteID；当前会被 Debezium Outbox Router 映射为 Kafka message key
+	Aggregateid *string `json:"aggregateid,omitempty"`
+	// 领域事件类型，如 user.registered；当前会被 Debezium Outbox Router 用作 Kafka topic 路由字段
+	Type *string `json:"type,omitempty"`
+	// 事件消息体；当前会被 Debezium Outbox Router 映射为 Kafka message value
+	Payload json.RawMessage `json:"payload,omitempty"`
+	// 可选事件头；当前会被 Debezium Outbox Router 映射为 Kafka headers，预留给 trace/source 等元数据
+	Headers json.RawMessage `json:"headers,omitempty"`
+	// Outbox 记录创建时间；主要用于审计、排查和按时间维度查询
+	CreatedAt    time.Time `json:"created_at,omitempty"`
 	selectValues sql.SelectValues
 }
 
@@ -37,13 +38,13 @@ func (*EventOutbox) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case eventoutbox.FieldPayload:
+		case eventoutbox.FieldPayload, eventoutbox.FieldHeaders:
 			values[i] = new([]byte)
-		case eventoutbox.FieldID, eventoutbox.FieldRetryCount:
+		case eventoutbox.FieldID:
 			values[i] = new(sql.NullInt64)
-		case eventoutbox.FieldTopic, eventoutbox.FieldStatus:
+		case eventoutbox.FieldAggregatetype, eventoutbox.FieldAggregateid, eventoutbox.FieldType:
 			values[i] = new(sql.NullString)
-		case eventoutbox.FieldCreatedAt, eventoutbox.FieldUpdatedAt:
+		case eventoutbox.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -66,41 +67,48 @@ func (_m *EventOutbox) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field id", value)
 			}
 			_m.ID = int(value.Int64)
-		case eventoutbox.FieldTopic:
+		case eventoutbox.FieldAggregatetype:
 			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field topic", values[i])
+				return fmt.Errorf("unexpected type %T for field aggregatetype", values[i])
 			} else if value.Valid {
-				_m.Topic = value.String
+				_m.Aggregatetype = new(string)
+				*_m.Aggregatetype = value.String
+			}
+		case eventoutbox.FieldAggregateid:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field aggregateid", values[i])
+			} else if value.Valid {
+				_m.Aggregateid = new(string)
+				*_m.Aggregateid = value.String
+			}
+		case eventoutbox.FieldType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field type", values[i])
+			} else if value.Valid {
+				_m.Type = new(string)
+				*_m.Type = value.String
 			}
 		case eventoutbox.FieldPayload:
 			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field payload", values[i])
-			} else if value != nil {
-				_m.Payload = *value
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Payload); err != nil {
+					return fmt.Errorf("unmarshal field payload: %w", err)
+				}
 			}
-		case eventoutbox.FieldStatus:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field status", values[i])
-			} else if value.Valid {
-				_m.Status = eventoutbox.Status(value.String)
-			}
-		case eventoutbox.FieldRetryCount:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for field retry_count", values[i])
-			} else if value.Valid {
-				_m.RetryCount = int(value.Int64)
+		case eventoutbox.FieldHeaders:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field headers", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Headers); err != nil {
+					return fmt.Errorf("unmarshal field headers: %w", err)
+				}
 			}
 		case eventoutbox.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
 			} else if value.Valid {
 				_m.CreatedAt = value.Time
-			}
-		case eventoutbox.FieldUpdatedAt:
-			if value, ok := values[i].(*sql.NullTime); !ok {
-				return fmt.Errorf("unexpected type %T for field updated_at", values[i])
-			} else if value.Valid {
-				_m.UpdatedAt = value.Time
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -138,23 +146,29 @@ func (_m *EventOutbox) String() string {
 	var builder strings.Builder
 	builder.WriteString("EventOutbox(")
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
-	builder.WriteString("topic=")
-	builder.WriteString(_m.Topic)
+	if v := _m.Aggregatetype; v != nil {
+		builder.WriteString("aggregatetype=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.Aggregateid; v != nil {
+		builder.WriteString("aggregateid=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.Type; v != nil {
+		builder.WriteString("type=")
+		builder.WriteString(*v)
+	}
 	builder.WriteString(", ")
 	builder.WriteString("payload=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Payload))
 	builder.WriteString(", ")
-	builder.WriteString("status=")
-	builder.WriteString(fmt.Sprintf("%v", _m.Status))
-	builder.WriteString(", ")
-	builder.WriteString("retry_count=")
-	builder.WriteString(fmt.Sprintf("%v", _m.RetryCount))
+	builder.WriteString("headers=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Headers))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))
-	builder.WriteString(", ")
-	builder.WriteString("updated_at=")
-	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))
 	builder.WriteByte(')')
 	return builder.String()
 }

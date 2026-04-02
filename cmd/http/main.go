@@ -10,7 +10,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
-	"github.com/segmentio/kafka-go"
 
 	"github.com/luckysxx/common/health"
 	"github.com/luckysxx/common/logger"
@@ -20,14 +19,12 @@ import (
 	"github.com/luckysxx/common/rpc"
 	"github.com/luckysxx/user-platform/internal/auth"
 	"github.com/luckysxx/user-platform/internal/ent"
-	"github.com/luckysxx/user-platform/internal/event"
 	"github.com/luckysxx/user-platform/internal/platform/config"
 	"github.com/luckysxx/user-platform/internal/platform/database"
 	"github.com/luckysxx/user-platform/internal/repository"
 	"github.com/luckysxx/user-platform/internal/service"
 	"github.com/luckysxx/user-platform/internal/transport/http/handler"
 	httprouter "github.com/luckysxx/user-platform/internal/transport/http/router"
-	"github.com/luckysxx/user-platform/internal/worker"
 	"go.uber.org/zap"
 )
 
@@ -43,10 +40,9 @@ func main() {
 	cfg := config.LoadConfig()
 
 	// 1. 初始化底层基础设施
-	entClient, redisClient, kafkaWriter := initInfra(cfg, log)
+	entClient, redisClient := initInfra(cfg, log)
 	defer entClient.Close()
 	defer redisClient.Close()
-	defer kafkaWriter.Close()
 
 	// 2. 初始化 OpenTelemetry 链路追踪
 	otelShutdown, err := commonOtel.InitTracer(cfg.OTel.ServiceName, cfg.OTel.JaegerEndpoint)
@@ -56,20 +52,14 @@ func main() {
 	defer otelShutdown(context.Background())
 
 	// 3. 依赖注入与组件装配
-	publisher := event.NewKafkaPublisher(cfg.Kafka.Brokers, cfg.Kafka.TopicUserRegistered, log)
-	defer publisher.Close()
-	router := buildRouter(cfg, entClient, redisClient, publisher, log)
+	router := buildRouter(cfg, entClient, redisClient, log)
 
-	// 4. 启动 OutboxWorker（异步补偿发件箱）
-	outboxRepo := repository.NewEventOutboxRepository(entClient, redisClient)
-	outboxWorker := worker.NewOutboxWorker(outboxRepo, kafkaWriter, redisClient, log)
-
-	// 5. 阻塞运行与优雅停机
-	runServer(router, outboxWorker, cfg.Server.Port, log)
+	// 4. 阻塞运行与优雅停机
+	runServer(router, cfg.Server.Port, log)
 }
 
 // initInfra 初始化基础设施
-func initInfra(cfg *config.Config, log *zap.Logger) (*ent.Client, *redis.Client, *kafka.Writer) {
+func initInfra(cfg *config.Config, log *zap.Logger) (*ent.Client, *redis.Client) {
 	if err := rpc.InitIDGenClient(cfg.IDGenerator.Addr); err != nil {
 		log.Fatal("初始化 ID 生成器客户端失败", zap.Error(err))
 	}
@@ -81,17 +71,15 @@ func initInfra(cfg *config.Config, log *zap.Logger) (*ent.Client, *redis.Client,
 		DB:       cfg.Redis.DB,
 	}, log)
 
-	kafkaWriter := event.NewKafkaWriter(cfg.Kafka.Brokers)
-
-	return entClient, redisClient, kafkaWriter
+	return entClient, redisClient
 }
 
 // buildRouter 依赖注入装配
-func buildRouter(cfg *config.Config, entClient *ent.Client, redisClient *redis.Client, publisher event.Publisher, log *zap.Logger) *gin.Engine {
+func buildRouter(cfg *config.Config, entClient *ent.Client, redisClient *redis.Client, log *zap.Logger) *gin.Engine {
 	// Repositories
 	userRepo := repository.NewUserRepository(entClient)
 	profileRepo := repository.NewProfileRepository(entClient)
-	outboxRepo := repository.NewEventOutboxRepository(entClient, redisClient)
+	outboxRepo := repository.NewEventOutboxRepository(entClient)
 	tm := repository.NewTransactionManager(entClient)
 	sessionRepo := repository.NewRedisSessionRepo(redisClient)
 	appRepo := repository.NewAppRepository(entClient)
@@ -99,7 +87,7 @@ func buildRouter(cfg *config.Config, entClient *ent.Client, redisClient *redis.C
 	// Domain Services
 	jwtManager := auth.NewJWTManager(cfg.JWT.Secret)
 	rateLim := ratelimiter.NewFixedWindowLimiter(redisClient, log)
-	userSvc := service.NewUserService(tm, userRepo, profileRepo, outboxRepo, publisher, log, cfg.Kafka.TopicUserRegistered)
+	userSvc := service.NewUserService(tm, userRepo, profileRepo, outboxRepo, log, cfg.Kafka.TopicUserRegistered)
 	authSvc := service.NewAuthService(userRepo, appRepo, sessionRepo, jwtManager, rateLim, log)
 
 	// Transport
@@ -122,12 +110,8 @@ func buildRouter(cfg *config.Config, entClient *ent.Client, redisClient *redis.C
 	return r
 }
 
-// runServer 启动 HTTP 服务器和 OutboxWorker，监听停机信号后优雅退出
-func runServer(router *gin.Engine, outboxWorker *worker.OutboxWorker, port string, log *zap.Logger) {
-	// 创建一个全局的可取消 context，用于统一管理所有后台协程的生命周期
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
+// runServer 启动 HTTP 服务器，监听停机信号后优雅退出
+func runServer(router *gin.Engine, port string, log *zap.Logger) {
 	// 启动 HTTP 服务器
 	srv := &http.Server{
 		Addr:    ":" + port,
@@ -140,13 +124,6 @@ func runServer(router *gin.Engine, outboxWorker *worker.OutboxWorker, port strin
 		}
 	}()
 
-	// 启动 OutboxWorker（后台轮询协程）
-	go func() {
-		if err := outboxWorker.Run(ctx); err != nil {
-			log.Error("OutboxWorker exited with error", zap.Error(err))
-		}
-	}()
-
 	// 监听停机信号
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
@@ -154,10 +131,7 @@ func runServer(router *gin.Engine, outboxWorker *worker.OutboxWorker, port strin
 
 	log.Info("收到停机信号，开始优雅退出...")
 
-	// 1. 先取消 context，通知 OutboxWorker 停止轮询
-	cancel()
-
-	// 2. 优雅关闭 HTTP 服务器（等待正在处理的请求完成）
+	// 优雅关闭 HTTP 服务器（等待正在处理的请求完成）
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutdownCancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"strconv"
 
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -67,4 +68,18 @@ func UserIDFromContext(ctx context.Context) (int64, error) {
 		return 0, status.Error(codes.Internal, "上下文中的 UserID 类型错误")
 	}
 	return userID, nil
+}
+
+func LogFieldsFromContext(ctx context.Context) []zap.Field {
+	val := ctx.Value(userIDKey)
+	if val == nil {
+		return nil
+	}
+
+	userID, ok := val.(int64)
+	if !ok {
+		return nil
+	}
+
+	return []zap.Field{zap.Int64("user_id", userID)}
 }

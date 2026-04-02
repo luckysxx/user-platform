@@ -23,12 +23,12 @@ var (
 	// EventOutboxesColumns holds the columns for the "event_outboxes" table.
 	EventOutboxesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
-		{Name: "topic", Type: field.TypeString},
-		{Name: "payload", Type: field.TypeBytes},
-		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "success", "failed"}, Default: "pending"},
-		{Name: "retry_count", Type: field.TypeInt, Default: 0},
+		{Name: "aggregatetype", Type: field.TypeString, Nullable: true},
+		{Name: "aggregateid", Type: field.TypeString, Nullable: true},
+		{Name: "type", Type: field.TypeString, Nullable: true},
+		{Name: "payload", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "headers", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb"}},
 		{Name: "created_at", Type: field.TypeTime},
-		{Name: "updated_at", Type: field.TypeTime},
 	}
 	// EventOutboxesTable holds the schema information for the "event_outboxes" table.
 	EventOutboxesTable = &schema.Table{
@@ -37,12 +37,12 @@ var (
 		PrimaryKey: []*schema.Column{EventOutboxesColumns[0]},
 		Indexes: []*schema.Index{
 			{
-				Name:    "eventoutbox_status_retry_count",
+				Name:    "eventoutbox_aggregatetype_aggregateid",
 				Unique:  false,
-				Columns: []*schema.Column{EventOutboxesColumns[3], EventOutboxesColumns[4]},
+				Columns: []*schema.Column{EventOutboxesColumns[1], EventOutboxesColumns[2]},
 			},
 			{
-				Name:    "eventoutbox_status_updated_at",
+				Name:    "eventoutbox_type_created_at",
 				Unique:  false,
 				Columns: []*schema.Column{EventOutboxesColumns[3], EventOutboxesColumns[6]},
 			},

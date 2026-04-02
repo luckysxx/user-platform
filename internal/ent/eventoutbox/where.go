@@ -54,19 +54,19 @@ func IDLTE(id int) predicate.EventOutbox {
 	return predicate.EventOutbox(sql.FieldLTE(FieldID, id))
 }
 
-// Topic applies equality check predicate on the "topic" field. It's identical to TopicEQ.
-func Topic(v string) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldEQ(FieldTopic, v))
+// Aggregatetype applies equality check predicate on the "aggregatetype" field. It's identical to AggregatetypeEQ.
+func Aggregatetype(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldEQ(FieldAggregatetype, v))
 }
 
-// Payload applies equality check predicate on the "payload" field. It's identical to PayloadEQ.
-func Payload(v []byte) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldEQ(FieldPayload, v))
+// Aggregateid applies equality check predicate on the "aggregateid" field. It's identical to AggregateidEQ.
+func Aggregateid(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldEQ(FieldAggregateid, v))
 }
 
-// RetryCount applies equality check predicate on the "retry_count" field. It's identical to RetryCountEQ.
-func RetryCount(v int) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldEQ(FieldRetryCount, v))
+// Type applies equality check predicate on the "type" field. It's identical to TypeEQ.
+func Type(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldEQ(FieldType, v))
 }
 
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
@@ -74,174 +74,239 @@ func CreatedAt(v time.Time) predicate.EventOutbox {
 	return predicate.EventOutbox(sql.FieldEQ(FieldCreatedAt, v))
 }
 
-// UpdatedAt applies equality check predicate on the "updated_at" field. It's identical to UpdatedAtEQ.
-func UpdatedAt(v time.Time) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldEQ(FieldUpdatedAt, v))
+// AggregatetypeEQ applies the EQ predicate on the "aggregatetype" field.
+func AggregatetypeEQ(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldEQ(FieldAggregatetype, v))
 }
 
-// TopicEQ applies the EQ predicate on the "topic" field.
-func TopicEQ(v string) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldEQ(FieldTopic, v))
+// AggregatetypeNEQ applies the NEQ predicate on the "aggregatetype" field.
+func AggregatetypeNEQ(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldNEQ(FieldAggregatetype, v))
 }
 
-// TopicNEQ applies the NEQ predicate on the "topic" field.
-func TopicNEQ(v string) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldNEQ(FieldTopic, v))
+// AggregatetypeIn applies the In predicate on the "aggregatetype" field.
+func AggregatetypeIn(vs ...string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldIn(FieldAggregatetype, vs...))
 }
 
-// TopicIn applies the In predicate on the "topic" field.
-func TopicIn(vs ...string) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldIn(FieldTopic, vs...))
+// AggregatetypeNotIn applies the NotIn predicate on the "aggregatetype" field.
+func AggregatetypeNotIn(vs ...string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldNotIn(FieldAggregatetype, vs...))
 }
 
-// TopicNotIn applies the NotIn predicate on the "topic" field.
-func TopicNotIn(vs ...string) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldNotIn(FieldTopic, vs...))
+// AggregatetypeGT applies the GT predicate on the "aggregatetype" field.
+func AggregatetypeGT(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldGT(FieldAggregatetype, v))
 }
 
-// TopicGT applies the GT predicate on the "topic" field.
-func TopicGT(v string) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldGT(FieldTopic, v))
+// AggregatetypeGTE applies the GTE predicate on the "aggregatetype" field.
+func AggregatetypeGTE(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldGTE(FieldAggregatetype, v))
 }
 
-// TopicGTE applies the GTE predicate on the "topic" field.
-func TopicGTE(v string) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldGTE(FieldTopic, v))
+// AggregatetypeLT applies the LT predicate on the "aggregatetype" field.
+func AggregatetypeLT(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldLT(FieldAggregatetype, v))
 }
 
-// TopicLT applies the LT predicate on the "topic" field.
-func TopicLT(v string) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldLT(FieldTopic, v))
+// AggregatetypeLTE applies the LTE predicate on the "aggregatetype" field.
+func AggregatetypeLTE(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldLTE(FieldAggregatetype, v))
 }
 
-// TopicLTE applies the LTE predicate on the "topic" field.
-func TopicLTE(v string) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldLTE(FieldTopic, v))
+// AggregatetypeContains applies the Contains predicate on the "aggregatetype" field.
+func AggregatetypeContains(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldContains(FieldAggregatetype, v))
 }
 
-// TopicContains applies the Contains predicate on the "topic" field.
-func TopicContains(v string) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldContains(FieldTopic, v))
+// AggregatetypeHasPrefix applies the HasPrefix predicate on the "aggregatetype" field.
+func AggregatetypeHasPrefix(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldHasPrefix(FieldAggregatetype, v))
 }
 
-// TopicHasPrefix applies the HasPrefix predicate on the "topic" field.
-func TopicHasPrefix(v string) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldHasPrefix(FieldTopic, v))
+// AggregatetypeHasSuffix applies the HasSuffix predicate on the "aggregatetype" field.
+func AggregatetypeHasSuffix(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldHasSuffix(FieldAggregatetype, v))
 }
 
-// TopicHasSuffix applies the HasSuffix predicate on the "topic" field.
-func TopicHasSuffix(v string) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldHasSuffix(FieldTopic, v))
+// AggregatetypeIsNil applies the IsNil predicate on the "aggregatetype" field.
+func AggregatetypeIsNil() predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldIsNull(FieldAggregatetype))
 }
 
-// TopicEqualFold applies the EqualFold predicate on the "topic" field.
-func TopicEqualFold(v string) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldEqualFold(FieldTopic, v))
+// AggregatetypeNotNil applies the NotNil predicate on the "aggregatetype" field.
+func AggregatetypeNotNil() predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldNotNull(FieldAggregatetype))
 }
 
-// TopicContainsFold applies the ContainsFold predicate on the "topic" field.
-func TopicContainsFold(v string) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldContainsFold(FieldTopic, v))
+// AggregatetypeEqualFold applies the EqualFold predicate on the "aggregatetype" field.
+func AggregatetypeEqualFold(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldEqualFold(FieldAggregatetype, v))
 }
 
-// PayloadEQ applies the EQ predicate on the "payload" field.
-func PayloadEQ(v []byte) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldEQ(FieldPayload, v))
+// AggregatetypeContainsFold applies the ContainsFold predicate on the "aggregatetype" field.
+func AggregatetypeContainsFold(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldContainsFold(FieldAggregatetype, v))
 }
 
-// PayloadNEQ applies the NEQ predicate on the "payload" field.
-func PayloadNEQ(v []byte) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldNEQ(FieldPayload, v))
+// AggregateidEQ applies the EQ predicate on the "aggregateid" field.
+func AggregateidEQ(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldEQ(FieldAggregateid, v))
 }
 
-// PayloadIn applies the In predicate on the "payload" field.
-func PayloadIn(vs ...[]byte) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldIn(FieldPayload, vs...))
+// AggregateidNEQ applies the NEQ predicate on the "aggregateid" field.
+func AggregateidNEQ(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldNEQ(FieldAggregateid, v))
 }
 
-// PayloadNotIn applies the NotIn predicate on the "payload" field.
-func PayloadNotIn(vs ...[]byte) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldNotIn(FieldPayload, vs...))
+// AggregateidIn applies the In predicate on the "aggregateid" field.
+func AggregateidIn(vs ...string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldIn(FieldAggregateid, vs...))
 }
 
-// PayloadGT applies the GT predicate on the "payload" field.
-func PayloadGT(v []byte) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldGT(FieldPayload, v))
+// AggregateidNotIn applies the NotIn predicate on the "aggregateid" field.
+func AggregateidNotIn(vs ...string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldNotIn(FieldAggregateid, vs...))
 }
 
-// PayloadGTE applies the GTE predicate on the "payload" field.
-func PayloadGTE(v []byte) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldGTE(FieldPayload, v))
+// AggregateidGT applies the GT predicate on the "aggregateid" field.
+func AggregateidGT(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldGT(FieldAggregateid, v))
 }
 
-// PayloadLT applies the LT predicate on the "payload" field.
-func PayloadLT(v []byte) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldLT(FieldPayload, v))
+// AggregateidGTE applies the GTE predicate on the "aggregateid" field.
+func AggregateidGTE(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldGTE(FieldAggregateid, v))
 }
 
-// PayloadLTE applies the LTE predicate on the "payload" field.
-func PayloadLTE(v []byte) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldLTE(FieldPayload, v))
+// AggregateidLT applies the LT predicate on the "aggregateid" field.
+func AggregateidLT(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldLT(FieldAggregateid, v))
 }
 
-// StatusEQ applies the EQ predicate on the "status" field.
-func StatusEQ(v Status) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldEQ(FieldStatus, v))
+// AggregateidLTE applies the LTE predicate on the "aggregateid" field.
+func AggregateidLTE(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldLTE(FieldAggregateid, v))
 }
 
-// StatusNEQ applies the NEQ predicate on the "status" field.
-func StatusNEQ(v Status) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldNEQ(FieldStatus, v))
+// AggregateidContains applies the Contains predicate on the "aggregateid" field.
+func AggregateidContains(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldContains(FieldAggregateid, v))
 }
 
-// StatusIn applies the In predicate on the "status" field.
-func StatusIn(vs ...Status) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldIn(FieldStatus, vs...))
+// AggregateidHasPrefix applies the HasPrefix predicate on the "aggregateid" field.
+func AggregateidHasPrefix(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldHasPrefix(FieldAggregateid, v))
 }
 
-// StatusNotIn applies the NotIn predicate on the "status" field.
-func StatusNotIn(vs ...Status) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldNotIn(FieldStatus, vs...))
+// AggregateidHasSuffix applies the HasSuffix predicate on the "aggregateid" field.
+func AggregateidHasSuffix(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldHasSuffix(FieldAggregateid, v))
 }
 
-// RetryCountEQ applies the EQ predicate on the "retry_count" field.
-func RetryCountEQ(v int) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldEQ(FieldRetryCount, v))
+// AggregateidIsNil applies the IsNil predicate on the "aggregateid" field.
+func AggregateidIsNil() predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldIsNull(FieldAggregateid))
 }
 
-// RetryCountNEQ applies the NEQ predicate on the "retry_count" field.
-func RetryCountNEQ(v int) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldNEQ(FieldRetryCount, v))
+// AggregateidNotNil applies the NotNil predicate on the "aggregateid" field.
+func AggregateidNotNil() predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldNotNull(FieldAggregateid))
 }
 
-// RetryCountIn applies the In predicate on the "retry_count" field.
-func RetryCountIn(vs ...int) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldIn(FieldRetryCount, vs...))
+// AggregateidEqualFold applies the EqualFold predicate on the "aggregateid" field.
+func AggregateidEqualFold(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldEqualFold(FieldAggregateid, v))
 }
 
-// RetryCountNotIn applies the NotIn predicate on the "retry_count" field.
-func RetryCountNotIn(vs ...int) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldNotIn(FieldRetryCount, vs...))
+// AggregateidContainsFold applies the ContainsFold predicate on the "aggregateid" field.
+func AggregateidContainsFold(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldContainsFold(FieldAggregateid, v))
 }
 
-// RetryCountGT applies the GT predicate on the "retry_count" field.
-func RetryCountGT(v int) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldGT(FieldRetryCount, v))
+// TypeEQ applies the EQ predicate on the "type" field.
+func TypeEQ(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldEQ(FieldType, v))
 }
 
-// RetryCountGTE applies the GTE predicate on the "retry_count" field.
-func RetryCountGTE(v int) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldGTE(FieldRetryCount, v))
+// TypeNEQ applies the NEQ predicate on the "type" field.
+func TypeNEQ(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldNEQ(FieldType, v))
 }
 
-// RetryCountLT applies the LT predicate on the "retry_count" field.
-func RetryCountLT(v int) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldLT(FieldRetryCount, v))
+// TypeIn applies the In predicate on the "type" field.
+func TypeIn(vs ...string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldIn(FieldType, vs...))
 }
 
-// RetryCountLTE applies the LTE predicate on the "retry_count" field.
-func RetryCountLTE(v int) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldLTE(FieldRetryCount, v))
+// TypeNotIn applies the NotIn predicate on the "type" field.
+func TypeNotIn(vs ...string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldNotIn(FieldType, vs...))
+}
+
+// TypeGT applies the GT predicate on the "type" field.
+func TypeGT(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldGT(FieldType, v))
+}
+
+// TypeGTE applies the GTE predicate on the "type" field.
+func TypeGTE(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldGTE(FieldType, v))
+}
+
+// TypeLT applies the LT predicate on the "type" field.
+func TypeLT(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldLT(FieldType, v))
+}
+
+// TypeLTE applies the LTE predicate on the "type" field.
+func TypeLTE(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldLTE(FieldType, v))
+}
+
+// TypeContains applies the Contains predicate on the "type" field.
+func TypeContains(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldContains(FieldType, v))
+}
+
+// TypeHasPrefix applies the HasPrefix predicate on the "type" field.
+func TypeHasPrefix(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldHasPrefix(FieldType, v))
+}
+
+// TypeHasSuffix applies the HasSuffix predicate on the "type" field.
+func TypeHasSuffix(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldHasSuffix(FieldType, v))
+}
+
+// TypeIsNil applies the IsNil predicate on the "type" field.
+func TypeIsNil() predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldIsNull(FieldType))
+}
+
+// TypeNotNil applies the NotNil predicate on the "type" field.
+func TypeNotNil() predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldNotNull(FieldType))
+}
+
+// TypeEqualFold applies the EqualFold predicate on the "type" field.
+func TypeEqualFold(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldEqualFold(FieldType, v))
+}
+
+// TypeContainsFold applies the ContainsFold predicate on the "type" field.
+func TypeContainsFold(v string) predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldContainsFold(FieldType, v))
+}
+
+// HeadersIsNil applies the IsNil predicate on the "headers" field.
+func HeadersIsNil() predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldIsNull(FieldHeaders))
+}
+
+// HeadersNotNil applies the NotNil predicate on the "headers" field.
+func HeadersNotNil() predicate.EventOutbox {
+	return predicate.EventOutbox(sql.FieldNotNull(FieldHeaders))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
@@ -282,46 +347,6 @@ func CreatedAtLT(v time.Time) predicate.EventOutbox {
 // CreatedAtLTE applies the LTE predicate on the "created_at" field.
 func CreatedAtLTE(v time.Time) predicate.EventOutbox {
 	return predicate.EventOutbox(sql.FieldLTE(FieldCreatedAt, v))
-}
-
-// UpdatedAtEQ applies the EQ predicate on the "updated_at" field.
-func UpdatedAtEQ(v time.Time) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldEQ(FieldUpdatedAt, v))
-}
-
-// UpdatedAtNEQ applies the NEQ predicate on the "updated_at" field.
-func UpdatedAtNEQ(v time.Time) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldNEQ(FieldUpdatedAt, v))
-}
-
-// UpdatedAtIn applies the In predicate on the "updated_at" field.
-func UpdatedAtIn(vs ...time.Time) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldIn(FieldUpdatedAt, vs...))
-}
-
-// UpdatedAtNotIn applies the NotIn predicate on the "updated_at" field.
-func UpdatedAtNotIn(vs ...time.Time) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldNotIn(FieldUpdatedAt, vs...))
-}
-
-// UpdatedAtGT applies the GT predicate on the "updated_at" field.
-func UpdatedAtGT(v time.Time) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldGT(FieldUpdatedAt, v))
-}
-
-// UpdatedAtGTE applies the GTE predicate on the "updated_at" field.
-func UpdatedAtGTE(v time.Time) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldGTE(FieldUpdatedAt, v))
-}
-
-// UpdatedAtLT applies the LT predicate on the "updated_at" field.
-func UpdatedAtLT(v time.Time) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldLT(FieldUpdatedAt, v))
-}
-
-// UpdatedAtLTE applies the LTE predicate on the "updated_at" field.
-func UpdatedAtLTE(v time.Time) predicate.EventOutbox {
-	return predicate.EventOutbox(sql.FieldLTE(FieldUpdatedAt, v))
 }
 
 // And groups predicates with the AND operator between them.

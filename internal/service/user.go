@@ -2,14 +2,15 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/luckysxx/common/crypto"
 	mqevents "github.com/luckysxx/common/mq/events"
+	mqoutbox "github.com/luckysxx/common/mq/outbox"
 	mqtopics "github.com/luckysxx/common/mq/topics"
-	"github.com/luckysxx/user-platform/internal/event"
+	"github.com/luckysxx/common/trace"
 	"github.com/luckysxx/user-platform/internal/repository"
 	servicecontract "github.com/luckysxx/user-platform/internal/service/contract"
 
@@ -24,8 +25,7 @@ type userService struct {
 	tm                  repository.TransactionManager
 	userRepo            repository.UserRepository
 	profileRepo         repository.ProfileRepository
-	outboxRepo          repository.EventOutboxRepository
-	Publisher           event.Publisher
+	outbox              mqoutbox.Writer
 	logger              *zap.Logger
 	topicUserRegistered string
 }
@@ -34,8 +34,7 @@ func NewUserService(
 	tm repository.TransactionManager,
 	userRepo repository.UserRepository,
 	profileRepo repository.ProfileRepository,
-	outboxRepo repository.EventOutboxRepository,
-	publisher event.Publisher,
+	outbox mqoutbox.Writer,
 	logger *zap.Logger,
 	topicUserRegistered string,
 ) UserService {
@@ -43,8 +42,7 @@ func NewUserService(
 		tm:                  tm,
 		userRepo:            userRepo,
 		profileRepo:         profileRepo,
-		outboxRepo:          outboxRepo,
-		Publisher:           publisher,
+		outbox:              outbox,
 		logger:              logger,
 		topicUserRegistered: topicUserRegistered,
 	}
@@ -79,19 +77,37 @@ func (s *userService) Register(ctx context.Context, req *servicecontract.Registe
 			Username: user.Username,
 		}
 
-		eventPayload, err := json.Marshal(mqevents.UserRegistered{
-			Version:   mqevents.UserRegisteredVersion,
-			EventType: mqtopics.UserRegistered,
-			UserID:    user.ID,
-			Email:     user.Email,
-			Username:  user.Username,
-			Timestamp: time.Now().Unix(),
-		})
+		// 先把"用户已注册"这个领域事件写入 Outbox，而不是在事务里直接发 Kafka。
+		// 这样用户数据和事件记录能一起提交，避免双写不一致。
+
+		// 构建 outbox headers，透传链路追踪 ID 到下游消费者
+		outboxHeaders := map[string]string{}
+		if traceID := trace.FromContext(txCtx); traceID != "" {
+			outboxHeaders[trace.HeaderTraceID] = traceID
+		}
+
+		record, err := mqoutbox.NewJSONRecord(
+			uuid.NewString(),
+			"user",
+			fmt.Sprintf("%d", user.ID),
+			s.topicUserRegistered,
+			mqevents.UserRegistered{
+				Version:   mqevents.UserRegisteredVersion,
+				EventType: mqtopics.UserRegistered,
+				UserID:    user.ID,
+				Email:     user.Email,
+				Username:  user.Username,
+				Timestamp: time.Now().Unix(),
+			},
+			outboxHeaders,
+		)
 		if err != nil {
 			return fmt.Errorf("序列化用户注册事件失败: %w", err)
 		}
 
-		err = s.outboxRepo.SaveEvent(txCtx, s.topicUserRegistered, eventPayload)
+		// Append 只负责把事件安全落库。
+		// 当前版本真正的 Kafka 投递仍由旧 Worker 完成，后面会逐步切到 CDC。
+		err = s.outbox.Append(txCtx, record)
 		if err != nil {
 			return fmt.Errorf("创建用户事件失败: %w", err)
 		}
@@ -102,9 +118,6 @@ func (s *userService) Register(ctx context.Context, req *servicecontract.Registe
 	if err != nil {
 		return nil, err
 	}
-
-	// 事务提交成功后，向 Redis 发送唤醒信号
-	_ = s.outboxRepo.Notify(context.WithoutCancel(ctx))
 
 	return resp, nil
 }

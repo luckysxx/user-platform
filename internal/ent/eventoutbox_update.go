@@ -4,12 +4,14 @@ package ent
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/luckysxx/user-platform/internal/ent/eventoutbox"
 	"github.com/luckysxx/user-platform/internal/ent/predicate"
@@ -28,58 +30,93 @@ func (_u *EventOutboxUpdate) Where(ps ...predicate.EventOutbox) *EventOutboxUpda
 	return _u
 }
 
-// SetTopic sets the "topic" field.
-func (_u *EventOutboxUpdate) SetTopic(v string) *EventOutboxUpdate {
-	_u.mutation.SetTopic(v)
+// SetAggregatetype sets the "aggregatetype" field.
+func (_u *EventOutboxUpdate) SetAggregatetype(v string) *EventOutboxUpdate {
+	_u.mutation.SetAggregatetype(v)
 	return _u
 }
 
-// SetNillableTopic sets the "topic" field if the given value is not nil.
-func (_u *EventOutboxUpdate) SetNillableTopic(v *string) *EventOutboxUpdate {
+// SetNillableAggregatetype sets the "aggregatetype" field if the given value is not nil.
+func (_u *EventOutboxUpdate) SetNillableAggregatetype(v *string) *EventOutboxUpdate {
 	if v != nil {
-		_u.SetTopic(*v)
+		_u.SetAggregatetype(*v)
 	}
+	return _u
+}
+
+// ClearAggregatetype clears the value of the "aggregatetype" field.
+func (_u *EventOutboxUpdate) ClearAggregatetype() *EventOutboxUpdate {
+	_u.mutation.ClearAggregatetype()
+	return _u
+}
+
+// SetAggregateid sets the "aggregateid" field.
+func (_u *EventOutboxUpdate) SetAggregateid(v string) *EventOutboxUpdate {
+	_u.mutation.SetAggregateid(v)
+	return _u
+}
+
+// SetNillableAggregateid sets the "aggregateid" field if the given value is not nil.
+func (_u *EventOutboxUpdate) SetNillableAggregateid(v *string) *EventOutboxUpdate {
+	if v != nil {
+		_u.SetAggregateid(*v)
+	}
+	return _u
+}
+
+// ClearAggregateid clears the value of the "aggregateid" field.
+func (_u *EventOutboxUpdate) ClearAggregateid() *EventOutboxUpdate {
+	_u.mutation.ClearAggregateid()
+	return _u
+}
+
+// SetType sets the "type" field.
+func (_u *EventOutboxUpdate) SetType(v string) *EventOutboxUpdate {
+	_u.mutation.SetType(v)
+	return _u
+}
+
+// SetNillableType sets the "type" field if the given value is not nil.
+func (_u *EventOutboxUpdate) SetNillableType(v *string) *EventOutboxUpdate {
+	if v != nil {
+		_u.SetType(*v)
+	}
+	return _u
+}
+
+// ClearType clears the value of the "type" field.
+func (_u *EventOutboxUpdate) ClearType() *EventOutboxUpdate {
+	_u.mutation.ClearType()
 	return _u
 }
 
 // SetPayload sets the "payload" field.
-func (_u *EventOutboxUpdate) SetPayload(v []byte) *EventOutboxUpdate {
+func (_u *EventOutboxUpdate) SetPayload(v json.RawMessage) *EventOutboxUpdate {
 	_u.mutation.SetPayload(v)
 	return _u
 }
 
-// SetStatus sets the "status" field.
-func (_u *EventOutboxUpdate) SetStatus(v eventoutbox.Status) *EventOutboxUpdate {
-	_u.mutation.SetStatus(v)
+// AppendPayload appends value to the "payload" field.
+func (_u *EventOutboxUpdate) AppendPayload(v json.RawMessage) *EventOutboxUpdate {
+	_u.mutation.AppendPayload(v)
 	return _u
 }
 
-// SetNillableStatus sets the "status" field if the given value is not nil.
-func (_u *EventOutboxUpdate) SetNillableStatus(v *eventoutbox.Status) *EventOutboxUpdate {
-	if v != nil {
-		_u.SetStatus(*v)
-	}
+// SetHeaders sets the "headers" field.
+func (_u *EventOutboxUpdate) SetHeaders(v json.RawMessage) *EventOutboxUpdate {
+	_u.mutation.SetHeaders(v)
 	return _u
 }
 
-// SetRetryCount sets the "retry_count" field.
-func (_u *EventOutboxUpdate) SetRetryCount(v int) *EventOutboxUpdate {
-	_u.mutation.ResetRetryCount()
-	_u.mutation.SetRetryCount(v)
+// AppendHeaders appends value to the "headers" field.
+func (_u *EventOutboxUpdate) AppendHeaders(v json.RawMessage) *EventOutboxUpdate {
+	_u.mutation.AppendHeaders(v)
 	return _u
 }
 
-// SetNillableRetryCount sets the "retry_count" field if the given value is not nil.
-func (_u *EventOutboxUpdate) SetNillableRetryCount(v *int) *EventOutboxUpdate {
-	if v != nil {
-		_u.SetRetryCount(*v)
-	}
-	return _u
-}
-
-// AddRetryCount adds value to the "retry_count" field.
-func (_u *EventOutboxUpdate) AddRetryCount(v int) *EventOutboxUpdate {
-	_u.mutation.AddRetryCount(v)
+// ClearHeaders clears the value of the "headers" field.
+func (_u *EventOutboxUpdate) ClearHeaders() *EventOutboxUpdate {
+	_u.mutation.ClearHeaders()
 	return _u
 }
 
@@ -97,12 +134,6 @@ func (_u *EventOutboxUpdate) SetNillableCreatedAt(v *time.Time) *EventOutboxUpda
 	return _u
 }
 
-// SetUpdatedAt sets the "updated_at" field.
-func (_u *EventOutboxUpdate) SetUpdatedAt(v time.Time) *EventOutboxUpdate {
-	_u.mutation.SetUpdatedAt(v)
-	return _u
-}
-
 // Mutation returns the EventOutboxMutation object of the builder.
 func (_u *EventOutboxUpdate) Mutation() *EventOutboxMutation {
 	return _u.mutation
@@ -110,7 +141,6 @@ func (_u *EventOutboxUpdate) Mutation() *EventOutboxMutation {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (_u *EventOutboxUpdate) Save(ctx context.Context) (int, error) {
-	_u.defaults()
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
@@ -136,38 +166,7 @@ func (_u *EventOutboxUpdate) ExecX(ctx context.Context) {
 	}
 }
 
-// defaults sets the default values of the builder before save.
-func (_u *EventOutboxUpdate) defaults() {
-	if _, ok := _u.mutation.UpdatedAt(); !ok {
-		v := eventoutbox.UpdateDefaultUpdatedAt()
-		_u.mutation.SetUpdatedAt(v)
-	}
-}
-
-// check runs all checks and user-defined validators on the builder.
-func (_u *EventOutboxUpdate) check() error {
-	if v, ok := _u.mutation.Topic(); ok {
-		if err := eventoutbox.TopicValidator(v); err != nil {
-			return &ValidationError{Name: "topic", err: fmt.Errorf(`ent: validator failed for field "EventOutbox.topic": %w`, err)}
-		}
-	}
-	if v, ok := _u.mutation.Payload(); ok {
-		if err := eventoutbox.PayloadValidator(v); err != nil {
-			return &ValidationError{Name: "payload", err: fmt.Errorf(`ent: validator failed for field "EventOutbox.payload": %w`, err)}
-		}
-	}
-	if v, ok := _u.mutation.Status(); ok {
-		if err := eventoutbox.StatusValidator(v); err != nil {
-			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "EventOutbox.status": %w`, err)}
-		}
-	}
-	return nil
-}
-
 func (_u *EventOutboxUpdate) sqlSave(ctx context.Context) (_node int, err error) {
-	if err := _u.check(); err != nil {
-		return _node, err
-	}
 	_spec := sqlgraph.NewUpdateSpec(eventoutbox.Table, eventoutbox.Columns, sqlgraph.NewFieldSpec(eventoutbox.FieldID, field.TypeInt))
 	if ps := _u.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -176,26 +175,45 @@ func (_u *EventOutboxUpdate) sqlSave(ctx context.Context) (_node int, err error)
 			}
 		}
 	}
-	if value, ok := _u.mutation.Topic(); ok {
-		_spec.SetField(eventoutbox.FieldTopic, field.TypeString, value)
+	if value, ok := _u.mutation.Aggregatetype(); ok {
+		_spec.SetField(eventoutbox.FieldAggregatetype, field.TypeString, value)
+	}
+	if _u.mutation.AggregatetypeCleared() {
+		_spec.ClearField(eventoutbox.FieldAggregatetype, field.TypeString)
+	}
+	if value, ok := _u.mutation.Aggregateid(); ok {
+		_spec.SetField(eventoutbox.FieldAggregateid, field.TypeString, value)
+	}
+	if _u.mutation.AggregateidCleared() {
+		_spec.ClearField(eventoutbox.FieldAggregateid, field.TypeString)
+	}
+	if value, ok := _u.mutation.GetType(); ok {
+		_spec.SetField(eventoutbox.FieldType, field.TypeString, value)
+	}
+	if _u.mutation.TypeCleared() {
+		_spec.ClearField(eventoutbox.FieldType, field.TypeString)
 	}
 	if value, ok := _u.mutation.Payload(); ok {
-		_spec.SetField(eventoutbox.FieldPayload, field.TypeBytes, value)
+		_spec.SetField(eventoutbox.FieldPayload, field.TypeJSON, value)
 	}
-	if value, ok := _u.mutation.Status(); ok {
-		_spec.SetField(eventoutbox.FieldStatus, field.TypeEnum, value)
+	if value, ok := _u.mutation.AppendedPayload(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, eventoutbox.FieldPayload, value)
+		})
 	}
-	if value, ok := _u.mutation.RetryCount(); ok {
-		_spec.SetField(eventoutbox.FieldRetryCount, field.TypeInt, value)
+	if value, ok := _u.mutation.Headers(); ok {
+		_spec.SetField(eventoutbox.FieldHeaders, field.TypeJSON, value)
 	}
-	if value, ok := _u.mutation.AddedRetryCount(); ok {
-		_spec.AddField(eventoutbox.FieldRetryCount, field.TypeInt, value)
+	if value, ok := _u.mutation.AppendedHeaders(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, eventoutbox.FieldHeaders, value)
+		})
+	}
+	if _u.mutation.HeadersCleared() {
+		_spec.ClearField(eventoutbox.FieldHeaders, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(eventoutbox.FieldCreatedAt, field.TypeTime, value)
-	}
-	if value, ok := _u.mutation.UpdatedAt(); ok {
-		_spec.SetField(eventoutbox.FieldUpdatedAt, field.TypeTime, value)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -217,58 +235,93 @@ type EventOutboxUpdateOne struct {
 	mutation *EventOutboxMutation
 }
 
-// SetTopic sets the "topic" field.
-func (_u *EventOutboxUpdateOne) SetTopic(v string) *EventOutboxUpdateOne {
-	_u.mutation.SetTopic(v)
+// SetAggregatetype sets the "aggregatetype" field.
+func (_u *EventOutboxUpdateOne) SetAggregatetype(v string) *EventOutboxUpdateOne {
+	_u.mutation.SetAggregatetype(v)
 	return _u
 }
 
-// SetNillableTopic sets the "topic" field if the given value is not nil.
-func (_u *EventOutboxUpdateOne) SetNillableTopic(v *string) *EventOutboxUpdateOne {
+// SetNillableAggregatetype sets the "aggregatetype" field if the given value is not nil.
+func (_u *EventOutboxUpdateOne) SetNillableAggregatetype(v *string) *EventOutboxUpdateOne {
 	if v != nil {
-		_u.SetTopic(*v)
+		_u.SetAggregatetype(*v)
 	}
+	return _u
+}
+
+// ClearAggregatetype clears the value of the "aggregatetype" field.
+func (_u *EventOutboxUpdateOne) ClearAggregatetype() *EventOutboxUpdateOne {
+	_u.mutation.ClearAggregatetype()
+	return _u
+}
+
+// SetAggregateid sets the "aggregateid" field.
+func (_u *EventOutboxUpdateOne) SetAggregateid(v string) *EventOutboxUpdateOne {
+	_u.mutation.SetAggregateid(v)
+	return _u
+}
+
+// SetNillableAggregateid sets the "aggregateid" field if the given value is not nil.
+func (_u *EventOutboxUpdateOne) SetNillableAggregateid(v *string) *EventOutboxUpdateOne {
+	if v != nil {
+		_u.SetAggregateid(*v)
+	}
+	return _u
+}
+
+// ClearAggregateid clears the value of the "aggregateid" field.
+func (_u *EventOutboxUpdateOne) ClearAggregateid() *EventOutboxUpdateOne {
+	_u.mutation.ClearAggregateid()
+	return _u
+}
+
+// SetType sets the "type" field.
+func (_u *EventOutboxUpdateOne) SetType(v string) *EventOutboxUpdateOne {
+	_u.mutation.SetType(v)
+	return _u
+}
+
+// SetNillableType sets the "type" field if the given value is not nil.
+func (_u *EventOutboxUpdateOne) SetNillableType(v *string) *EventOutboxUpdateOne {
+	if v != nil {
+		_u.SetType(*v)
+	}
+	return _u
+}
+
+// ClearType clears the value of the "type" field.
+func (_u *EventOutboxUpdateOne) ClearType() *EventOutboxUpdateOne {
+	_u.mutation.ClearType()
 	return _u
 }
 
 // SetPayload sets the "payload" field.
-func (_u *EventOutboxUpdateOne) SetPayload(v []byte) *EventOutboxUpdateOne {
+func (_u *EventOutboxUpdateOne) SetPayload(v json.RawMessage) *EventOutboxUpdateOne {
 	_u.mutation.SetPayload(v)
 	return _u
 }
 
-// SetStatus sets the "status" field.
-func (_u *EventOutboxUpdateOne) SetStatus(v eventoutbox.Status) *EventOutboxUpdateOne {
-	_u.mutation.SetStatus(v)
+// AppendPayload appends value to the "payload" field.
+func (_u *EventOutboxUpdateOne) AppendPayload(v json.RawMessage) *EventOutboxUpdateOne {
+	_u.mutation.AppendPayload(v)
 	return _u
 }
 
-// SetNillableStatus sets the "status" field if the given value is not nil.
-func (_u *EventOutboxUpdateOne) SetNillableStatus(v *eventoutbox.Status) *EventOutboxUpdateOne {
-	if v != nil {
-		_u.SetStatus(*v)
-	}
+// SetHeaders sets the "headers" field.
+func (_u *EventOutboxUpdateOne) SetHeaders(v json.RawMessage) *EventOutboxUpdateOne {
+	_u.mutation.SetHeaders(v)
 	return _u
 }
 
-// SetRetryCount sets the "retry_count" field.
-func (_u *EventOutboxUpdateOne) SetRetryCount(v int) *EventOutboxUpdateOne {
-	_u.mutation.ResetRetryCount()
-	_u.mutation.SetRetryCount(v)
+// AppendHeaders appends value to the "headers" field.
+func (_u *EventOutboxUpdateOne) AppendHeaders(v json.RawMessage) *EventOutboxUpdateOne {
+	_u.mutation.AppendHeaders(v)
 	return _u
 }
 
-// SetNillableRetryCount sets the "retry_count" field if the given value is not nil.
-func (_u *EventOutboxUpdateOne) SetNillableRetryCount(v *int) *EventOutboxUpdateOne {
-	if v != nil {
-		_u.SetRetryCount(*v)
-	}
-	return _u
-}
-
-// AddRetryCount adds value to the "retry_count" field.
-func (_u *EventOutboxUpdateOne) AddRetryCount(v int) *EventOutboxUpdateOne {
-	_u.mutation.AddRetryCount(v)
+// ClearHeaders clears the value of the "headers" field.
+func (_u *EventOutboxUpdateOne) ClearHeaders() *EventOutboxUpdateOne {
+	_u.mutation.ClearHeaders()
 	return _u
 }
 
@@ -283,12 +336,6 @@ func (_u *EventOutboxUpdateOne) SetNillableCreatedAt(v *time.Time) *EventOutboxU
 	if v != nil {
 		_u.SetCreatedAt(*v)
 	}
-	return _u
-}
-
-// SetUpdatedAt sets the "updated_at" field.
-func (_u *EventOutboxUpdateOne) SetUpdatedAt(v time.Time) *EventOutboxUpdateOne {
-	_u.mutation.SetUpdatedAt(v)
 	return _u
 }
 
@@ -312,7 +359,6 @@ func (_u *EventOutboxUpdateOne) Select(field string, fields ...string) *EventOut
 
 // Save executes the query and returns the updated EventOutbox entity.
 func (_u *EventOutboxUpdateOne) Save(ctx context.Context) (*EventOutbox, error) {
-	_u.defaults()
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
@@ -338,38 +384,7 @@ func (_u *EventOutboxUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
-// defaults sets the default values of the builder before save.
-func (_u *EventOutboxUpdateOne) defaults() {
-	if _, ok := _u.mutation.UpdatedAt(); !ok {
-		v := eventoutbox.UpdateDefaultUpdatedAt()
-		_u.mutation.SetUpdatedAt(v)
-	}
-}
-
-// check runs all checks and user-defined validators on the builder.
-func (_u *EventOutboxUpdateOne) check() error {
-	if v, ok := _u.mutation.Topic(); ok {
-		if err := eventoutbox.TopicValidator(v); err != nil {
-			return &ValidationError{Name: "topic", err: fmt.Errorf(`ent: validator failed for field "EventOutbox.topic": %w`, err)}
-		}
-	}
-	if v, ok := _u.mutation.Payload(); ok {
-		if err := eventoutbox.PayloadValidator(v); err != nil {
-			return &ValidationError{Name: "payload", err: fmt.Errorf(`ent: validator failed for field "EventOutbox.payload": %w`, err)}
-		}
-	}
-	if v, ok := _u.mutation.Status(); ok {
-		if err := eventoutbox.StatusValidator(v); err != nil {
-			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "EventOutbox.status": %w`, err)}
-		}
-	}
-	return nil
-}
-
 func (_u *EventOutboxUpdateOne) sqlSave(ctx context.Context) (_node *EventOutbox, err error) {
-	if err := _u.check(); err != nil {
-		return _node, err
-	}
 	_spec := sqlgraph.NewUpdateSpec(eventoutbox.Table, eventoutbox.Columns, sqlgraph.NewFieldSpec(eventoutbox.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -395,26 +410,45 @@ func (_u *EventOutboxUpdateOne) sqlSave(ctx context.Context) (_node *EventOutbox
 			}
 		}
 	}
-	if value, ok := _u.mutation.Topic(); ok {
-		_spec.SetField(eventoutbox.FieldTopic, field.TypeString, value)
+	if value, ok := _u.mutation.Aggregatetype(); ok {
+		_spec.SetField(eventoutbox.FieldAggregatetype, field.TypeString, value)
+	}
+	if _u.mutation.AggregatetypeCleared() {
+		_spec.ClearField(eventoutbox.FieldAggregatetype, field.TypeString)
+	}
+	if value, ok := _u.mutation.Aggregateid(); ok {
+		_spec.SetField(eventoutbox.FieldAggregateid, field.TypeString, value)
+	}
+	if _u.mutation.AggregateidCleared() {
+		_spec.ClearField(eventoutbox.FieldAggregateid, field.TypeString)
+	}
+	if value, ok := _u.mutation.GetType(); ok {
+		_spec.SetField(eventoutbox.FieldType, field.TypeString, value)
+	}
+	if _u.mutation.TypeCleared() {
+		_spec.ClearField(eventoutbox.FieldType, field.TypeString)
 	}
 	if value, ok := _u.mutation.Payload(); ok {
-		_spec.SetField(eventoutbox.FieldPayload, field.TypeBytes, value)
+		_spec.SetField(eventoutbox.FieldPayload, field.TypeJSON, value)
 	}
-	if value, ok := _u.mutation.Status(); ok {
-		_spec.SetField(eventoutbox.FieldStatus, field.TypeEnum, value)
+	if value, ok := _u.mutation.AppendedPayload(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, eventoutbox.FieldPayload, value)
+		})
 	}
-	if value, ok := _u.mutation.RetryCount(); ok {
-		_spec.SetField(eventoutbox.FieldRetryCount, field.TypeInt, value)
+	if value, ok := _u.mutation.Headers(); ok {
+		_spec.SetField(eventoutbox.FieldHeaders, field.TypeJSON, value)
 	}
-	if value, ok := _u.mutation.AddedRetryCount(); ok {
-		_spec.AddField(eventoutbox.FieldRetryCount, field.TypeInt, value)
+	if value, ok := _u.mutation.AppendedHeaders(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, eventoutbox.FieldHeaders, value)
+		})
+	}
+	if _u.mutation.HeadersCleared() {
+		_spec.ClearField(eventoutbox.FieldHeaders, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(eventoutbox.FieldCreatedAt, field.TypeTime, value)
-	}
-	if value, ok := _u.mutation.UpdatedAt(); ok {
-		_spec.SetField(eventoutbox.FieldUpdatedAt, field.TypeTime, value)
 	}
 	_node = &EventOutbox{config: _u.config}
 	_spec.Assign = _node.assignValues

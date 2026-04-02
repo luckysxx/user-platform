@@ -264,12 +264,12 @@ func (_q *EventOutboxQuery) Clone() *EventOutboxQuery {
 // Example:
 //
 //	var v []struct {
-//		Topic string `json:"topic,omitempty"`
+//		Aggregatetype string `json:"aggregatetype,omitempty"`
 //		Count int `json:"count,omitempty"`
 //	}
 //
 //	client.EventOutbox.Query().
-//		GroupBy(eventoutbox.FieldTopic).
+//		GroupBy(eventoutbox.FieldAggregatetype).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
 func (_q *EventOutboxQuery) GroupBy(field string, fields ...string) *EventOutboxGroupBy {
@@ -287,11 +287,11 @@ func (_q *EventOutboxQuery) GroupBy(field string, fields ...string) *EventOutbox
 // Example:
 //
 //	var v []struct {
-//		Topic string `json:"topic,omitempty"`
+//		Aggregatetype string `json:"aggregatetype,omitempty"`
 //	}
 //
 //	client.EventOutbox.Query().
-//		Select(eventoutbox.FieldTopic).
+//		Select(eventoutbox.FieldAggregatetype).
 //		Scan(ctx, &v)
 func (_q *EventOutboxQuery) Select(fields ...string) *EventOutboxSelect {
 	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
