@@ -23,6 +23,7 @@ import (
 	"github.com/luckysxx/common/rpc"
 	"github.com/luckysxx/user-platform/internal/auth"
 	"github.com/luckysxx/user-platform/internal/ent"
+	"github.com/luckysxx/user-platform/internal/platform/bootstrap"
 	"github.com/luckysxx/user-platform/internal/platform/config"
 	"github.com/luckysxx/user-platform/internal/platform/database"
 	"github.com/luckysxx/user-platform/internal/repository"
@@ -69,6 +70,9 @@ func initInfra(cfg *config.Config, log *zap.Logger) (*ent.Client, *redis.Client)
 	}
 
 	entClient := database.InitEntClient(cfg.Database.Driver, cfg.Database.Source, cfg.Database.AutoMigrate, log)
+	if err := bootstrap.EnsureDefaultApps(context.Background(), entClient, log, bootstrap.DefaultApps); err != nil {
+		log.Fatal("初始化默认应用失败", zap.Error(err))
+	}
 	redisClient := commonRedis.Init(commonRedis.Config{
 		Addr:     cfg.Redis.Addr,
 		Password: cfg.Redis.Password,
