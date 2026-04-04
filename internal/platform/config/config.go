@@ -2,18 +2,21 @@ package config
 
 import (
 	"github.com/luckysxx/common/conf"
+	commonOtel "github.com/luckysxx/common/otel"
+	"github.com/luckysxx/common/postgres"
+	commonRedis "github.com/luckysxx/common/redis"
 )
 
 type Config struct {
 	AppEnv      string                `mapstructure:"app_env"`
 	Server      conf.ServerConfig     `mapstructure:"server"`
 	GRPCServer  GRPCServerConfig      `mapstructure:"grpc_server"`
-	Database    conf.DatabaseConfig   `mapstructure:"database"`
-	Redis       conf.RedisConfig      `mapstructure:"redis"`
+	Database    postgres.Config       `mapstructure:"database"`
+	Redis       commonRedis.Config    `mapstructure:"redis"`
 	JWT         JWTConfig             `mapstructure:"jwt"`
 	Kafka       KafkaConfig           `mapstructure:"kafka"`
 	IDGenerator conf.IDGeneratorConfig `mapstructure:"id_generator"`
-	OTel        conf.OTelConfig       `mapstructure:"otel"`
+	OTel        commonOtel.Config     `mapstructure:"otel"`
 	Metrics     MetricsConfig         `mapstructure:"metrics"`
 }
 
