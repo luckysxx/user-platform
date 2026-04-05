@@ -33,6 +33,7 @@ func (s *AuthServer) Login(ctx context.Context, req *pb.LoginRequest) (*pb.Login
 		Username: req.GetUsername(),
 		Password: req.GetPassword(),
 		AppCode:  req.GetAppCode(),
+		DeviceID: req.GetDeviceId(),
 	})
 	if err != nil {
 		return nil, grpcerrs.ToGRPCError(err)
@@ -69,7 +70,8 @@ func (s *AuthServer) Logout(ctx context.Context, req *pb.LogoutRequest) (*pb.Log
 	}
 
 	err = s.avc.Logout(ctx, &servicecontract.LogoutCommand{
-		UserID: userID,
+		UserID:   userID,
+		DeviceID: req.GetDeviceId(),
 	})
 	if err != nil {
 		return nil, grpcerrs.ToGRPCError(err)

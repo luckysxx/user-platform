@@ -36,6 +36,13 @@ func NewRedisSessionRepo(cli *redis.Client) SessionRepository {
 }
 
 func (r *redisSessionRepo) SaveDeviceSession(ctx context.Context, userID int64, deviceID string, refreshToken string, duration time.Duration) error {
+	hashKey := fmt.Sprintf("user_sessions:%d", userID)
+
+	// 0. 清理旧 session 的逆向索引（防止重新登录后产生 orphan key）
+	if oldToken, err := r.cli.HGet(ctx, hashKey, deviceID).Result(); err == nil && oldToken != "" {
+		r.cli.Del(ctx, fmt.Sprintf("refresh_token:%s", oldToken))
+	}
+
 	pipe := r.cli.TxPipeline()
 
 	// a. 逆向索引
@@ -44,7 +51,6 @@ func (r *redisSessionRepo) SaveDeviceSession(ctx context.Context, userID int64, 
 	pipe.Set(ctx, redisKey, val, duration)
 
 	// b. 正向哈希索引
-	hashKey := fmt.Sprintf("user_sessions:%d", userID)
 	pipe.HSet(ctx, hashKey, deviceID, refreshToken)
 	pipe.Expire(ctx, hashKey, duration)
 
