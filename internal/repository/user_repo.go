@@ -12,7 +12,7 @@ import (
 
 type UserRepository interface {
 	Create(ctx context.Context, email string, username string, passwordhash string) (*ent.User, error)
-	GetByUsername(ctx context.Context, username string) (*ent.User, error)
+	GetByLoginIdentity(ctx context.Context, identity string) (*ent.User, error)
 	GetByID(ctx context.Context, id int64) (*ent.User, error)
 }
 
@@ -59,10 +59,15 @@ func (r *userRepository) Create(ctx context.Context, email string, username stri
 	return u, nil
 }
 
-func (r *userRepository) GetByUsername(ctx context.Context, username string) (*ent.User, error) {
+func (r *userRepository) GetByLoginIdentity(ctx context.Context, identity string) (*ent.User, error) {
 	u, err := r.client.User.
 		Query().
-		Where(user.UsernameEQ(username)).
+		Where(
+			user.Or(
+				user.UsernameEQ(identity),
+				user.EmailEQ(identity),
+			),
+		).
 		Where(user.StatusEQ(user.StatusActive)).
 		Only(ctx)
 	if err != nil {

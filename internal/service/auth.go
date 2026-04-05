@@ -77,7 +77,8 @@ func (s *authService) Login(ctx context.Context, req *servicecontract.LoginComma
 	}
 
 	// 1. 获取用户
-	user, err := s.repo.GetByUsername(ctx, req.Username)
+	// 当前登录入口允许“用户名或邮箱”两种身份标识，沿用 Username 字段承载输入值。
+	user, err := s.repo.GetByLoginIdentity(ctx, req.Username)
 	if err != nil {
 		if dberr.IsNotFoundError(err) {
 			return nil, ErrInvalidCredentials
