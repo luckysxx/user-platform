@@ -18,10 +18,14 @@ const userIDKey contextKey = "user_id"
 
 // authWhiteList 定义无需鉴权的公共接口白名单
 var authWhiteList = map[string]bool{
-	"/user.AuthService/Login":        true,
-	"/user.AuthService/RefreshToken": true,
-	"/user.UserService/Register":     true,
-	"/user.AuthService/VerifyToken":  true,
+	"/user.AuthService/Login":              true,
+	"/user.AuthService/RefreshToken":       true,
+	"/user.AuthService/VerifyToken":        true,
+	"/user.AuthService/ExchangeSSO":        true,
+	"/user.AuthService/SendPhoneCode":      true,
+	"/user.AuthService/PhoneAuthEntry":     true,
+	"/user.AuthService/PhonePasswordLogin": true,
+	"/user.UserService/Register":           true,
 }
 
 // GatewayAuthInterceptor 网关信任模式拦截器。

@@ -11,21 +11,17 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 
-	"github.com/luckysxx/common/probe"
 	"github.com/luckysxx/common/logger"
 	commonOtel "github.com/luckysxx/common/otel"
-	"github.com/luckysxx/common/ratelimiter"
+	"github.com/luckysxx/common/probe"
 	commonRedis "github.com/luckysxx/common/redis"
 	"github.com/luckysxx/common/rpc"
-	"github.com/luckysxx/user-platform/internal/auth"
+	"github.com/luckysxx/user-platform/internal/appcontainer"
 	"github.com/luckysxx/user-platform/internal/ent"
 	"github.com/luckysxx/user-platform/internal/platform/bootstrap"
 	"github.com/luckysxx/user-platform/internal/platform/config"
 	"github.com/luckysxx/user-platform/internal/platform/database"
-	"github.com/luckysxx/user-platform/internal/repository"
-	"github.com/luckysxx/user-platform/internal/service"
-	"github.com/luckysxx/user-platform/internal/transport/http/handler"
-	httprouter "github.com/luckysxx/user-platform/internal/transport/http/router"
+	httprouter "github.com/luckysxx/user-platform/internal/transport/http/server/router"
 	"go.uber.org/zap"
 )
 
@@ -76,22 +72,7 @@ func initInfra(cfg *config.Config, log *zap.Logger) (*ent.Client, *redis.Client)
 
 // buildRouter 依赖注入装配
 func buildRouter(cfg *config.Config, entClient *ent.Client, redisClient *redis.Client, log *zap.Logger) *gin.Engine {
-	// Repositories
-	userRepo := repository.NewUserRepository(entClient)
-	profileRepo := repository.NewProfileRepository(entClient)
-	outboxRepo := repository.NewEventOutboxRepository(entClient)
-	tm := repository.NewTransactionManager(entClient)
-	sessionRepo := repository.NewRedisSessionRepo(redisClient)
-	appRepo := repository.NewAppRepository(entClient)
-
-	// Domain Services
-	jwtManager := auth.NewJWTManager(cfg.JWT.Secret)
-	rateLim := ratelimiter.NewFixedWindowLimiter(redisClient, log)
-	userSvc := service.NewUserService(tm, userRepo, profileRepo, outboxRepo, log, cfg.Kafka.TopicUserRegistered)
-	authSvc := service.NewAuthService(userRepo, appRepo, sessionRepo, jwtManager, rateLim, log)
-
-	// Transport
-	userHandler := handler.NewUserHandler(userSvc, authSvc, log)
+	container := appcontainer.Build(cfg, entClient, redisClient, log)
 	r := gin.New()
 
 	// 探针端点：/healthz, /readyz, /metrics（注册在业务中间件之前）
@@ -103,7 +84,12 @@ func buildRouter(cfg *config.Config, entClient *ent.Client, redisClient *redis.C
 		probe.WithRedis(redisClient),
 	)
 
-	httprouter.SetupRouter(r, userHandler, jwtManager, log)
+	httprouter.SetupRouter(httprouter.Dependencies{
+		Engine:      r,
+		UserHandler: container.UserHandler,
+		JWTManager:  container.JWTManager,
+		Logger:      log,
+	})
 
 	return r
 }

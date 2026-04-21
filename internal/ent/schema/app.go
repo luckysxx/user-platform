@@ -20,7 +20,9 @@ func (App) Fields() []ent.Field {
 
 func (App) Edges() []ent.Edge {
 	return []ent.Edge{
-		// 1对多：一个 App 可以有多个用户的授权记录
-		edge.To("profiles", UserAppProfile.Type),
+		// 1对多：一个 App 可以有多个新版授权记录
+		edge.To("authorizations", UserAppAuthorization.Type),
+		// 1对多：一个 App 可以有多个会话
+		edge.To("sessions", Session.Type),
 	}
 }

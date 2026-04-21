@@ -15,8 +15,9 @@ const (
 
 // Claims JWT Claims 载荷
 type Claims struct {
-	UserID   int64  `json:"user_id"`
-	Username string `json:"username"`
+	UserID      int64  `json:"user_id"`
+	Username    string `json:"username"`
+	UserVersion int64  `json:"user_version"`
 	jwt.RegisteredClaims
 }
 
@@ -32,11 +33,12 @@ func NewJWTManager(secret string) *JWTManager {
 	}
 }
 
-// GenerateAccessToken 生成访问 JWT
-func (j *JWTManager) GenerateAccessToken(userID int64, username string) (string, error) {
+// GenerateAccessToken 生成访问 JWT。
+func (j *JWTManager) GenerateAccessToken(userID int64, username string, userVersion int64) (string, error) {
 	claims := Claims{
-		UserID:   userID,
-		Username: username,
+		UserID:      userID,
+		Username:    username,
+		UserVersion: userVersion,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(AccessTokenDuration)),
 			Issuer:    "user-platform",

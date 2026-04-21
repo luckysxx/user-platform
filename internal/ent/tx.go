@@ -18,10 +18,16 @@ type Tx struct {
 	EventOutbox *EventOutboxClient
 	// Profile is the client for interacting with the Profile builders.
 	Profile *ProfileClient
+	// Session is the client for interacting with the Session builders.
+	Session *SessionClient
+	// SsoSession is the client for interacting with the SsoSession builders.
+	SsoSession *SsoSessionClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
-	// UserAppProfile is the client for interacting with the UserAppProfile builders.
-	UserAppProfile *UserAppProfileClient
+	// UserAppAuthorization is the client for interacting with the UserAppAuthorization builders.
+	UserAppAuthorization *UserAppAuthorizationClient
+	// UserIdentity is the client for interacting with the UserIdentity builders.
+	UserIdentity *UserIdentityClient
 
 	// lazily loaded.
 	client     *Client
@@ -156,8 +162,11 @@ func (tx *Tx) init() {
 	tx.App = NewAppClient(tx.config)
 	tx.EventOutbox = NewEventOutboxClient(tx.config)
 	tx.Profile = NewProfileClient(tx.config)
+	tx.Session = NewSessionClient(tx.config)
+	tx.SsoSession = NewSsoSessionClient(tx.config)
 	tx.User = NewUserClient(tx.config)
-	tx.UserAppProfile = NewUserAppProfileClient(tx.config)
+	tx.UserAppAuthorization = NewUserAppAuthorizationClient(tx.config)
+	tx.UserIdentity = NewUserIdentityClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.

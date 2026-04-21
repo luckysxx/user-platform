@@ -15,20 +15,26 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/luckysxx/user-platform/internal/ent/predicate"
 	"github.com/luckysxx/user-platform/internal/ent/profile"
+	"github.com/luckysxx/user-platform/internal/ent/session"
+	"github.com/luckysxx/user-platform/internal/ent/ssosession"
 	"github.com/luckysxx/user-platform/internal/ent/user"
-	"github.com/luckysxx/user-platform/internal/ent/userappprofile"
+	"github.com/luckysxx/user-platform/internal/ent/userappauthorization"
+	"github.com/luckysxx/user-platform/internal/ent/useridentity"
 )
 
 // UserQuery is the builder for querying User entities.
 type UserQuery struct {
 	config
-	ctx          *QueryContext
-	order        []user.OrderOption
-	inters       []Interceptor
-	predicates   []predicate.User
-	withProfiles *UserAppProfileQuery
-	withProfile  *ProfileQuery
-	modifiers    []func(*sql.Selector)
+	ctx                *QueryContext
+	order              []user.OrderOption
+	inters             []Interceptor
+	predicates         []predicate.User
+	withProfile        *ProfileQuery
+	withIdentities     *UserIdentityQuery
+	withAuthorizations *UserAppAuthorizationQuery
+	withSSOSessions    *SsoSessionQuery
+	withSessions       *SessionQuery
+	modifiers          []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -65,28 +71,6 @@ func (_q *UserQuery) Order(o ...user.OrderOption) *UserQuery {
 	return _q
 }
 
-// QueryProfiles chains the current query on the "profiles" edge.
-func (_q *UserQuery) QueryProfiles() *UserAppProfileQuery {
-	query := (&UserAppProfileClient{config: _q.config}).Query()
-	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
-		if err := _q.prepareQuery(ctx); err != nil {
-			return nil, err
-		}
-		selector := _q.sqlQuery(ctx)
-		if err := selector.Err(); err != nil {
-			return nil, err
-		}
-		step := sqlgraph.NewStep(
-			sqlgraph.From(user.Table, user.FieldID, selector),
-			sqlgraph.To(userappprofile.Table, userappprofile.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, user.ProfilesTable, user.ProfilesColumn),
-		)
-		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
-		return fromU, nil
-	}
-	return query
-}
-
 // QueryProfile chains the current query on the "profile" edge.
 func (_q *UserQuery) QueryProfile() *ProfileQuery {
 	query := (&ProfileClient{config: _q.config}).Query()
@@ -102,6 +86,94 @@ func (_q *UserQuery) QueryProfile() *ProfileQuery {
 			sqlgraph.From(user.Table, user.FieldID, selector),
 			sqlgraph.To(profile.Table, profile.FieldID),
 			sqlgraph.Edge(sqlgraph.O2O, false, user.ProfileTable, user.ProfileColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryIdentities chains the current query on the "identities" edge.
+func (_q *UserQuery) QueryIdentities() *UserIdentityQuery {
+	query := (&UserIdentityClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(useridentity.Table, useridentity.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.IdentitiesTable, user.IdentitiesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryAuthorizations chains the current query on the "authorizations" edge.
+func (_q *UserQuery) QueryAuthorizations() *UserAppAuthorizationQuery {
+	query := (&UserAppAuthorizationClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(userappauthorization.Table, userappauthorization.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.AuthorizationsTable, user.AuthorizationsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QuerySSOSessions chains the current query on the "sso_sessions" edge.
+func (_q *UserQuery) QuerySSOSessions() *SsoSessionQuery {
+	query := (&SsoSessionClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(ssosession.Table, ssosession.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.SSOSessionsTable, user.SSOSessionsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QuerySessions chains the current query on the "sessions" edge.
+func (_q *UserQuery) QuerySessions() *SessionQuery {
+	query := (&SessionClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(session.Table, session.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.SessionsTable, user.SessionsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -296,28 +368,20 @@ func (_q *UserQuery) Clone() *UserQuery {
 		return nil
 	}
 	return &UserQuery{
-		config:       _q.config,
-		ctx:          _q.ctx.Clone(),
-		order:        append([]user.OrderOption{}, _q.order...),
-		inters:       append([]Interceptor{}, _q.inters...),
-		predicates:   append([]predicate.User{}, _q.predicates...),
-		withProfiles: _q.withProfiles.Clone(),
-		withProfile:  _q.withProfile.Clone(),
+		config:             _q.config,
+		ctx:                _q.ctx.Clone(),
+		order:              append([]user.OrderOption{}, _q.order...),
+		inters:             append([]Interceptor{}, _q.inters...),
+		predicates:         append([]predicate.User{}, _q.predicates...),
+		withProfile:        _q.withProfile.Clone(),
+		withIdentities:     _q.withIdentities.Clone(),
+		withAuthorizations: _q.withAuthorizations.Clone(),
+		withSSOSessions:    _q.withSSOSessions.Clone(),
+		withSessions:       _q.withSessions.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
 	}
-}
-
-// WithProfiles tells the query-builder to eager-load the nodes that are connected to
-// the "profiles" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *UserQuery) WithProfiles(opts ...func(*UserAppProfileQuery)) *UserQuery {
-	query := (&UserAppProfileClient{config: _q.config}).Query()
-	for _, opt := range opts {
-		opt(query)
-	}
-	_q.withProfiles = query
-	return _q
 }
 
 // WithProfile tells the query-builder to eager-load the nodes that are connected to
@@ -331,18 +395,62 @@ func (_q *UserQuery) WithProfile(opts ...func(*ProfileQuery)) *UserQuery {
 	return _q
 }
 
+// WithIdentities tells the query-builder to eager-load the nodes that are connected to
+// the "identities" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithIdentities(opts ...func(*UserIdentityQuery)) *UserQuery {
+	query := (&UserIdentityClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withIdentities = query
+	return _q
+}
+
+// WithAuthorizations tells the query-builder to eager-load the nodes that are connected to
+// the "authorizations" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithAuthorizations(opts ...func(*UserAppAuthorizationQuery)) *UserQuery {
+	query := (&UserAppAuthorizationClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withAuthorizations = query
+	return _q
+}
+
+// WithSSOSessions tells the query-builder to eager-load the nodes that are connected to
+// the "sso_sessions" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithSSOSessions(opts ...func(*SsoSessionQuery)) *UserQuery {
+	query := (&SsoSessionClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withSSOSessions = query
+	return _q
+}
+
+// WithSessions tells the query-builder to eager-load the nodes that are connected to
+// the "sessions" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithSessions(opts ...func(*SessionQuery)) *UserQuery {
+	query := (&SessionClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withSessions = query
+	return _q
+}
+
 // GroupBy is used to group vertices by one or more fields/columns.
 // It is often used with aggregate functions, like: count, max, mean, min, sum.
 //
 // Example:
 //
 //	var v []struct {
-//		Email string `json:"email,omitempty"`
+//		UserVersion int64 `json:"user_version,omitempty"`
 //		Count int `json:"count,omitempty"`
 //	}
 //
 //	client.User.Query().
-//		GroupBy(user.FieldEmail).
+//		GroupBy(user.FieldUserVersion).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
 func (_q *UserQuery) GroupBy(field string, fields ...string) *UserGroupBy {
@@ -360,11 +468,11 @@ func (_q *UserQuery) GroupBy(field string, fields ...string) *UserGroupBy {
 // Example:
 //
 //	var v []struct {
-//		Email string `json:"email,omitempty"`
+//		UserVersion int64 `json:"user_version,omitempty"`
 //	}
 //
 //	client.User.Query().
-//		Select(user.FieldEmail).
+//		Select(user.FieldUserVersion).
 //		Scan(ctx, &v)
 func (_q *UserQuery) Select(fields ...string) *UserSelect {
 	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
@@ -409,9 +517,12 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	var (
 		nodes       = []*User{}
 		_spec       = _q.querySpec()
-		loadedTypes = [2]bool{
-			_q.withProfiles != nil,
+		loadedTypes = [5]bool{
 			_q.withProfile != nil,
+			_q.withIdentities != nil,
+			_q.withAuthorizations != nil,
+			_q.withSSOSessions != nil,
+			_q.withSessions != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -435,53 +546,43 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
-	if query := _q.withProfiles; query != nil {
-		if err := _q.loadProfiles(ctx, query, nodes,
-			func(n *User) { n.Edges.Profiles = []*UserAppProfile{} },
-			func(n *User, e *UserAppProfile) { n.Edges.Profiles = append(n.Edges.Profiles, e) }); err != nil {
-			return nil, err
-		}
-	}
 	if query := _q.withProfile; query != nil {
 		if err := _q.loadProfile(ctx, query, nodes, nil,
 			func(n *User, e *Profile) { n.Edges.Profile = e }); err != nil {
 			return nil, err
 		}
 	}
+	if query := _q.withIdentities; query != nil {
+		if err := _q.loadIdentities(ctx, query, nodes,
+			func(n *User) { n.Edges.Identities = []*UserIdentity{} },
+			func(n *User, e *UserIdentity) { n.Edges.Identities = append(n.Edges.Identities, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withAuthorizations; query != nil {
+		if err := _q.loadAuthorizations(ctx, query, nodes,
+			func(n *User) { n.Edges.Authorizations = []*UserAppAuthorization{} },
+			func(n *User, e *UserAppAuthorization) { n.Edges.Authorizations = append(n.Edges.Authorizations, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withSSOSessions; query != nil {
+		if err := _q.loadSSOSessions(ctx, query, nodes,
+			func(n *User) { n.Edges.SSOSessions = []*SsoSession{} },
+			func(n *User, e *SsoSession) { n.Edges.SSOSessions = append(n.Edges.SSOSessions, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withSessions; query != nil {
+		if err := _q.loadSessions(ctx, query, nodes,
+			func(n *User) { n.Edges.Sessions = []*Session{} },
+			func(n *User, e *Session) { n.Edges.Sessions = append(n.Edges.Sessions, e) }); err != nil {
+			return nil, err
+		}
+	}
 	return nodes, nil
 }
 
-func (_q *UserQuery) loadProfiles(ctx context.Context, query *UserAppProfileQuery, nodes []*User, init func(*User), assign func(*User, *UserAppProfile)) error {
-	fks := make([]driver.Value, 0, len(nodes))
-	nodeids := make(map[int64]*User)
-	for i := range nodes {
-		fks = append(fks, nodes[i].ID)
-		nodeids[nodes[i].ID] = nodes[i]
-		if init != nil {
-			init(nodes[i])
-		}
-	}
-	query.withFKs = true
-	query.Where(predicate.UserAppProfile(func(s *sql.Selector) {
-		s.Where(sql.InValues(s.C(user.ProfilesColumn), fks...))
-	}))
-	neighbors, err := query.All(ctx)
-	if err != nil {
-		return err
-	}
-	for _, n := range neighbors {
-		fk := n.user_profiles
-		if fk == nil {
-			return fmt.Errorf(`foreign-key "user_profiles" is nil for node %v`, n.ID)
-		}
-		node, ok := nodeids[*fk]
-		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "user_profiles" returned %v for node %v`, *fk, n.ID)
-		}
-		assign(node, n)
-	}
-	return nil
-}
 func (_q *UserQuery) loadProfile(ctx context.Context, query *ProfileQuery, nodes []*User, init func(*User), assign func(*User, *Profile)) error {
 	fks := make([]driver.Value, 0, len(nodes))
 	nodeids := make(map[int64]*User)
@@ -505,6 +606,130 @@ func (_q *UserQuery) loadProfile(ctx context.Context, query *ProfileQuery, nodes
 		node, ok := nodeids[*fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "user_profile" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadIdentities(ctx context.Context, query *UserIdentityQuery, nodes []*User, init func(*User), assign func(*User, *UserIdentity)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	query.withFKs = true
+	query.Where(predicate.UserIdentity(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.IdentitiesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.user_identities
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "user_identities" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "user_identities" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadAuthorizations(ctx context.Context, query *UserAppAuthorizationQuery, nodes []*User, init func(*User), assign func(*User, *UserAppAuthorization)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	query.withFKs = true
+	query.Where(predicate.UserAppAuthorization(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.AuthorizationsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.user_authorizations
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "user_authorizations" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "user_authorizations" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadSSOSessions(ctx context.Context, query *SsoSessionQuery, nodes []*User, init func(*User), assign func(*User, *SsoSession)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	query.withFKs = true
+	query.Where(predicate.SsoSession(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.SSOSessionsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.user_sso_sessions
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "user_sso_sessions" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "user_sso_sessions" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadSessions(ctx context.Context, query *SessionQuery, nodes []*User, init func(*User), assign func(*User, *Session)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	query.withFKs = true
+	query.Where(predicate.Session(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.SessionsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.user_sessions
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "user_sessions" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "user_sessions" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}

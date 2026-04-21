@@ -10,9 +10,11 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/google/uuid"
 	"github.com/luckysxx/user-platform/internal/ent/app"
 	"github.com/luckysxx/user-platform/internal/ent/predicate"
-	"github.com/luckysxx/user-platform/internal/ent/userappprofile"
+	"github.com/luckysxx/user-platform/internal/ent/session"
+	"github.com/luckysxx/user-platform/internal/ent/userappauthorization"
 )
 
 // AppUpdate is the builder for updating App entities.
@@ -56,19 +58,34 @@ func (_u *AppUpdate) SetNillableAppName(v *string) *AppUpdate {
 	return _u
 }
 
-// AddProfileIDs adds the "profiles" edge to the UserAppProfile entity by IDs.
-func (_u *AppUpdate) AddProfileIDs(ids ...int) *AppUpdate {
-	_u.mutation.AddProfileIDs(ids...)
+// AddAuthorizationIDs adds the "authorizations" edge to the UserAppAuthorization entity by IDs.
+func (_u *AppUpdate) AddAuthorizationIDs(ids ...int) *AppUpdate {
+	_u.mutation.AddAuthorizationIDs(ids...)
 	return _u
 }
 
-// AddProfiles adds the "profiles" edges to the UserAppProfile entity.
-func (_u *AppUpdate) AddProfiles(v ...*UserAppProfile) *AppUpdate {
+// AddAuthorizations adds the "authorizations" edges to the UserAppAuthorization entity.
+func (_u *AppUpdate) AddAuthorizations(v ...*UserAppAuthorization) *AppUpdate {
 	ids := make([]int, len(v))
 	for i := range v {
 		ids[i] = v[i].ID
 	}
-	return _u.AddProfileIDs(ids...)
+	return _u.AddAuthorizationIDs(ids...)
+}
+
+// AddSessionIDs adds the "sessions" edge to the Session entity by IDs.
+func (_u *AppUpdate) AddSessionIDs(ids ...uuid.UUID) *AppUpdate {
+	_u.mutation.AddSessionIDs(ids...)
+	return _u
+}
+
+// AddSessions adds the "sessions" edges to the Session entity.
+func (_u *AppUpdate) AddSessions(v ...*Session) *AppUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddSessionIDs(ids...)
 }
 
 // Mutation returns the AppMutation object of the builder.
@@ -76,25 +93,46 @@ func (_u *AppUpdate) Mutation() *AppMutation {
 	return _u.mutation
 }
 
-// ClearProfiles clears all "profiles" edges to the UserAppProfile entity.
-func (_u *AppUpdate) ClearProfiles() *AppUpdate {
-	_u.mutation.ClearProfiles()
+// ClearAuthorizations clears all "authorizations" edges to the UserAppAuthorization entity.
+func (_u *AppUpdate) ClearAuthorizations() *AppUpdate {
+	_u.mutation.ClearAuthorizations()
 	return _u
 }
 
-// RemoveProfileIDs removes the "profiles" edge to UserAppProfile entities by IDs.
-func (_u *AppUpdate) RemoveProfileIDs(ids ...int) *AppUpdate {
-	_u.mutation.RemoveProfileIDs(ids...)
+// RemoveAuthorizationIDs removes the "authorizations" edge to UserAppAuthorization entities by IDs.
+func (_u *AppUpdate) RemoveAuthorizationIDs(ids ...int) *AppUpdate {
+	_u.mutation.RemoveAuthorizationIDs(ids...)
 	return _u
 }
 
-// RemoveProfiles removes "profiles" edges to UserAppProfile entities.
-func (_u *AppUpdate) RemoveProfiles(v ...*UserAppProfile) *AppUpdate {
+// RemoveAuthorizations removes "authorizations" edges to UserAppAuthorization entities.
+func (_u *AppUpdate) RemoveAuthorizations(v ...*UserAppAuthorization) *AppUpdate {
 	ids := make([]int, len(v))
 	for i := range v {
 		ids[i] = v[i].ID
 	}
-	return _u.RemoveProfileIDs(ids...)
+	return _u.RemoveAuthorizationIDs(ids...)
+}
+
+// ClearSessions clears all "sessions" edges to the Session entity.
+func (_u *AppUpdate) ClearSessions() *AppUpdate {
+	_u.mutation.ClearSessions()
+	return _u
+}
+
+// RemoveSessionIDs removes the "sessions" edge to Session entities by IDs.
+func (_u *AppUpdate) RemoveSessionIDs(ids ...uuid.UUID) *AppUpdate {
+	_u.mutation.RemoveSessionIDs(ids...)
+	return _u
+}
+
+// RemoveSessions removes "sessions" edges to Session entities.
+func (_u *AppUpdate) RemoveSessions(v ...*Session) *AppUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveSessionIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -157,28 +195,28 @@ func (_u *AppUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.AppName(); ok {
 		_spec.SetField(app.FieldAppName, field.TypeString, value)
 	}
-	if _u.mutation.ProfilesCleared() {
+	if _u.mutation.AuthorizationsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   app.ProfilesTable,
-			Columns: []string{app.ProfilesColumn},
+			Table:   app.AuthorizationsTable,
+			Columns: []string{app.AuthorizationsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(userappprofile.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(userappauthorization.FieldID, field.TypeInt),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedProfilesIDs(); len(nodes) > 0 && !_u.mutation.ProfilesCleared() {
+	if nodes := _u.mutation.RemovedAuthorizationsIDs(); len(nodes) > 0 && !_u.mutation.AuthorizationsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   app.ProfilesTable,
-			Columns: []string{app.ProfilesColumn},
+			Table:   app.AuthorizationsTable,
+			Columns: []string{app.AuthorizationsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(userappprofile.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(userappauthorization.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -186,15 +224,60 @@ func (_u *AppUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.ProfilesIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.AuthorizationsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   app.ProfilesTable,
-			Columns: []string{app.ProfilesColumn},
+			Table:   app.AuthorizationsTable,
+			Columns: []string{app.AuthorizationsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(userappprofile.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(userappauthorization.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.SessionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   app.SessionsTable,
+			Columns: []string{app.SessionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(session.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedSessionsIDs(); len(nodes) > 0 && !_u.mutation.SessionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   app.SessionsTable,
+			Columns: []string{app.SessionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(session.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.SessionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   app.SessionsTable,
+			Columns: []string{app.SessionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(session.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -250,19 +333,34 @@ func (_u *AppUpdateOne) SetNillableAppName(v *string) *AppUpdateOne {
 	return _u
 }
 
-// AddProfileIDs adds the "profiles" edge to the UserAppProfile entity by IDs.
-func (_u *AppUpdateOne) AddProfileIDs(ids ...int) *AppUpdateOne {
-	_u.mutation.AddProfileIDs(ids...)
+// AddAuthorizationIDs adds the "authorizations" edge to the UserAppAuthorization entity by IDs.
+func (_u *AppUpdateOne) AddAuthorizationIDs(ids ...int) *AppUpdateOne {
+	_u.mutation.AddAuthorizationIDs(ids...)
 	return _u
 }
 
-// AddProfiles adds the "profiles" edges to the UserAppProfile entity.
-func (_u *AppUpdateOne) AddProfiles(v ...*UserAppProfile) *AppUpdateOne {
+// AddAuthorizations adds the "authorizations" edges to the UserAppAuthorization entity.
+func (_u *AppUpdateOne) AddAuthorizations(v ...*UserAppAuthorization) *AppUpdateOne {
 	ids := make([]int, len(v))
 	for i := range v {
 		ids[i] = v[i].ID
 	}
-	return _u.AddProfileIDs(ids...)
+	return _u.AddAuthorizationIDs(ids...)
+}
+
+// AddSessionIDs adds the "sessions" edge to the Session entity by IDs.
+func (_u *AppUpdateOne) AddSessionIDs(ids ...uuid.UUID) *AppUpdateOne {
+	_u.mutation.AddSessionIDs(ids...)
+	return _u
+}
+
+// AddSessions adds the "sessions" edges to the Session entity.
+func (_u *AppUpdateOne) AddSessions(v ...*Session) *AppUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddSessionIDs(ids...)
 }
 
 // Mutation returns the AppMutation object of the builder.
@@ -270,25 +368,46 @@ func (_u *AppUpdateOne) Mutation() *AppMutation {
 	return _u.mutation
 }
 
-// ClearProfiles clears all "profiles" edges to the UserAppProfile entity.
-func (_u *AppUpdateOne) ClearProfiles() *AppUpdateOne {
-	_u.mutation.ClearProfiles()
+// ClearAuthorizations clears all "authorizations" edges to the UserAppAuthorization entity.
+func (_u *AppUpdateOne) ClearAuthorizations() *AppUpdateOne {
+	_u.mutation.ClearAuthorizations()
 	return _u
 }
 
-// RemoveProfileIDs removes the "profiles" edge to UserAppProfile entities by IDs.
-func (_u *AppUpdateOne) RemoveProfileIDs(ids ...int) *AppUpdateOne {
-	_u.mutation.RemoveProfileIDs(ids...)
+// RemoveAuthorizationIDs removes the "authorizations" edge to UserAppAuthorization entities by IDs.
+func (_u *AppUpdateOne) RemoveAuthorizationIDs(ids ...int) *AppUpdateOne {
+	_u.mutation.RemoveAuthorizationIDs(ids...)
 	return _u
 }
 
-// RemoveProfiles removes "profiles" edges to UserAppProfile entities.
-func (_u *AppUpdateOne) RemoveProfiles(v ...*UserAppProfile) *AppUpdateOne {
+// RemoveAuthorizations removes "authorizations" edges to UserAppAuthorization entities.
+func (_u *AppUpdateOne) RemoveAuthorizations(v ...*UserAppAuthorization) *AppUpdateOne {
 	ids := make([]int, len(v))
 	for i := range v {
 		ids[i] = v[i].ID
 	}
-	return _u.RemoveProfileIDs(ids...)
+	return _u.RemoveAuthorizationIDs(ids...)
+}
+
+// ClearSessions clears all "sessions" edges to the Session entity.
+func (_u *AppUpdateOne) ClearSessions() *AppUpdateOne {
+	_u.mutation.ClearSessions()
+	return _u
+}
+
+// RemoveSessionIDs removes the "sessions" edge to Session entities by IDs.
+func (_u *AppUpdateOne) RemoveSessionIDs(ids ...uuid.UUID) *AppUpdateOne {
+	_u.mutation.RemoveSessionIDs(ids...)
+	return _u
+}
+
+// RemoveSessions removes "sessions" edges to Session entities.
+func (_u *AppUpdateOne) RemoveSessions(v ...*Session) *AppUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveSessionIDs(ids...)
 }
 
 // Where appends a list predicates to the AppUpdate builder.
@@ -381,28 +500,28 @@ func (_u *AppUpdateOne) sqlSave(ctx context.Context) (_node *App, err error) {
 	if value, ok := _u.mutation.AppName(); ok {
 		_spec.SetField(app.FieldAppName, field.TypeString, value)
 	}
-	if _u.mutation.ProfilesCleared() {
+	if _u.mutation.AuthorizationsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   app.ProfilesTable,
-			Columns: []string{app.ProfilesColumn},
+			Table:   app.AuthorizationsTable,
+			Columns: []string{app.AuthorizationsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(userappprofile.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(userappauthorization.FieldID, field.TypeInt),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedProfilesIDs(); len(nodes) > 0 && !_u.mutation.ProfilesCleared() {
+	if nodes := _u.mutation.RemovedAuthorizationsIDs(); len(nodes) > 0 && !_u.mutation.AuthorizationsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   app.ProfilesTable,
-			Columns: []string{app.ProfilesColumn},
+			Table:   app.AuthorizationsTable,
+			Columns: []string{app.AuthorizationsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(userappprofile.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(userappauthorization.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -410,15 +529,60 @@ func (_u *AppUpdateOne) sqlSave(ctx context.Context) (_node *App, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.ProfilesIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.AuthorizationsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   app.ProfilesTable,
-			Columns: []string{app.ProfilesColumn},
+			Table:   app.AuthorizationsTable,
+			Columns: []string{app.AuthorizationsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(userappprofile.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(userappauthorization.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.SessionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   app.SessionsTable,
+			Columns: []string{app.SessionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(session.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedSessionsIDs(); len(nodes) > 0 && !_u.mutation.SessionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   app.SessionsTable,
+			Columns: []string{app.SessionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(session.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.SessionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   app.SessionsTable,
+			Columns: []string{app.SessionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(session.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

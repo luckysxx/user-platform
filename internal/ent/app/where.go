@@ -193,21 +193,44 @@ func AppNameContainsFold(v string) predicate.App {
 	return predicate.App(sql.FieldContainsFold(FieldAppName, v))
 }
 
-// HasProfiles applies the HasEdge predicate on the "profiles" edge.
-func HasProfiles() predicate.App {
+// HasAuthorizations applies the HasEdge predicate on the "authorizations" edge.
+func HasAuthorizations() predicate.App {
 	return predicate.App(func(s *sql.Selector) {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, ProfilesTable, ProfilesColumn),
+			sqlgraph.Edge(sqlgraph.O2M, false, AuthorizationsTable, AuthorizationsColumn),
 		)
 		sqlgraph.HasNeighbors(s, step)
 	})
 }
 
-// HasProfilesWith applies the HasEdge predicate on the "profiles" edge with a given conditions (other predicates).
-func HasProfilesWith(preds ...predicate.UserAppProfile) predicate.App {
+// HasAuthorizationsWith applies the HasEdge predicate on the "authorizations" edge with a given conditions (other predicates).
+func HasAuthorizationsWith(preds ...predicate.UserAppAuthorization) predicate.App {
 	return predicate.App(func(s *sql.Selector) {
-		step := newProfilesStep()
+		step := newAuthorizationsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasSessions applies the HasEdge predicate on the "sessions" edge.
+func HasSessions() predicate.App {
+	return predicate.App(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, SessionsTable, SessionsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasSessionsWith applies the HasEdge predicate on the "sessions" edge with a given conditions (other predicates).
+func HasSessionsWith(preds ...predicate.Session) predicate.App {
+	return predicate.App(func(s *sql.Selector) {
+		step := newSessionsStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

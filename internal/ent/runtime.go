@@ -5,12 +5,16 @@ package ent
 import (
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/luckysxx/user-platform/internal/ent/app"
 	"github.com/luckysxx/user-platform/internal/ent/eventoutbox"
 	"github.com/luckysxx/user-platform/internal/ent/profile"
 	"github.com/luckysxx/user-platform/internal/ent/schema"
+	"github.com/luckysxx/user-platform/internal/ent/session"
+	"github.com/luckysxx/user-platform/internal/ent/ssosession"
 	"github.com/luckysxx/user-platform/internal/ent/user"
-	"github.com/luckysxx/user-platform/internal/ent/userappprofile"
+	"github.com/luckysxx/user-platform/internal/ent/userappauthorization"
+	"github.com/luckysxx/user-platform/internal/ent/useridentity"
 )
 
 // The init function reads all schema descriptors with runtime code
@@ -69,54 +73,82 @@ func init() {
 	profileDescID := profileFields[0].Descriptor()
 	// profile.IDValidator is a validator for the "id" field. It is called by the builders before save.
 	profile.IDValidator = profileDescID.Validators[0].(func(int64) error)
+	sessionFields := schema.Session{}.Fields()
+	_ = sessionFields
+	// sessionDescSessionTokenHash is the schema descriptor for session_token_hash field.
+	sessionDescSessionTokenHash := sessionFields[1].Descriptor()
+	// session.SessionTokenHashValidator is a validator for the "session_token_hash" field. It is called by the builders before save.
+	session.SessionTokenHashValidator = sessionDescSessionTokenHash.Validators[0].(func(string) error)
+	// sessionDescDeviceID is the schema descriptor for device_id field.
+	sessionDescDeviceID := sessionFields[2].Descriptor()
+	// session.DeviceIDValidator is a validator for the "device_id" field. It is called by the builders before save.
+	session.DeviceIDValidator = sessionDescDeviceID.Validators[0].(func(string) error)
+	// sessionDescUserAgent is the schema descriptor for user_agent field.
+	sessionDescUserAgent := sessionFields[3].Descriptor()
+	// session.UserAgentValidator is a validator for the "user_agent" field. It is called by the builders before save.
+	session.UserAgentValidator = sessionDescUserAgent.Validators[0].(func(string) error)
+	// sessionDescVersion is the schema descriptor for version field.
+	sessionDescVersion := sessionFields[6].Descriptor()
+	// session.DefaultVersion holds the default value on creation for the version field.
+	session.DefaultVersion = sessionDescVersion.Default.(int64)
+	// sessionDescUserVersion is the schema descriptor for user_version field.
+	sessionDescUserVersion := sessionFields[7].Descriptor()
+	// session.DefaultUserVersion holds the default value on creation for the user_version field.
+	session.DefaultUserVersion = sessionDescUserVersion.Default.(int64)
+	// sessionDescLastSeenAt is the schema descriptor for last_seen_at field.
+	sessionDescLastSeenAt := sessionFields[9].Descriptor()
+	// session.DefaultLastSeenAt holds the default value on creation for the last_seen_at field.
+	session.DefaultLastSeenAt = sessionDescLastSeenAt.Default.(func() time.Time)
+	// session.UpdateDefaultLastSeenAt holds the default value on update for the last_seen_at field.
+	session.UpdateDefaultLastSeenAt = sessionDescLastSeenAt.UpdateDefault.(func() time.Time)
+	// sessionDescID is the schema descriptor for id field.
+	sessionDescID := sessionFields[0].Descriptor()
+	// session.DefaultID holds the default value on creation for the id field.
+	session.DefaultID = sessionDescID.Default.(func() uuid.UUID)
+	ssosessionFields := schema.SsoSession{}.Fields()
+	_ = ssosessionFields
+	// ssosessionDescSSOTokenHash is the schema descriptor for sso_token_hash field.
+	ssosessionDescSSOTokenHash := ssosessionFields[1].Descriptor()
+	// ssosession.SSOTokenHashValidator is a validator for the "sso_token_hash" field. It is called by the builders before save.
+	ssosession.SSOTokenHashValidator = ssosessionDescSSOTokenHash.Validators[0].(func(string) error)
+	// ssosessionDescDeviceID is the schema descriptor for device_id field.
+	ssosessionDescDeviceID := ssosessionFields[2].Descriptor()
+	// ssosession.DeviceIDValidator is a validator for the "device_id" field. It is called by the builders before save.
+	ssosession.DeviceIDValidator = ssosessionDescDeviceID.Validators[0].(func(string) error)
+	// ssosessionDescUserAgent is the schema descriptor for user_agent field.
+	ssosessionDescUserAgent := ssosessionFields[3].Descriptor()
+	// ssosession.UserAgentValidator is a validator for the "user_agent" field. It is called by the builders before save.
+	ssosession.UserAgentValidator = ssosessionDescUserAgent.Validators[0].(func(string) error)
+	// ssosessionDescSSOVersion is the schema descriptor for sso_version field.
+	ssosessionDescSSOVersion := ssosessionFields[6].Descriptor()
+	// ssosession.DefaultSSOVersion holds the default value on creation for the sso_version field.
+	ssosession.DefaultSSOVersion = ssosessionDescSSOVersion.Default.(int64)
+	// ssosessionDescUserVersion is the schema descriptor for user_version field.
+	ssosessionDescUserVersion := ssosessionFields[7].Descriptor()
+	// ssosession.DefaultUserVersion holds the default value on creation for the user_version field.
+	ssosession.DefaultUserVersion = ssosessionDescUserVersion.Default.(int64)
+	// ssosessionDescLastSeenAt is the schema descriptor for last_seen_at field.
+	ssosessionDescLastSeenAt := ssosessionFields[9].Descriptor()
+	// ssosession.DefaultLastSeenAt holds the default value on creation for the last_seen_at field.
+	ssosession.DefaultLastSeenAt = ssosessionDescLastSeenAt.Default.(func() time.Time)
+	// ssosession.UpdateDefaultLastSeenAt holds the default value on update for the last_seen_at field.
+	ssosession.UpdateDefaultLastSeenAt = ssosessionDescLastSeenAt.UpdateDefault.(func() time.Time)
+	// ssosessionDescID is the schema descriptor for id field.
+	ssosessionDescID := ssosessionFields[0].Descriptor()
+	// ssosession.DefaultID holds the default value on creation for the id field.
+	ssosession.DefaultID = ssosessionDescID.Default.(func() uuid.UUID)
 	userFields := schema.User{}.Fields()
 	_ = userFields
-	// userDescEmail is the schema descriptor for email field.
-	userDescEmail := userFields[1].Descriptor()
-	// user.EmailValidator is a validator for the "email" field. It is called by the builders before save.
-	user.EmailValidator = func() func(string) error {
-		validators := userDescEmail.Validators
-		fns := [...]func(string) error{
-			validators[0].(func(string) error),
-			validators[1].(func(string) error),
-		}
-		return func(email string) error {
-			for _, fn := range fns {
-				if err := fn(email); err != nil {
-					return err
-				}
-			}
-			return nil
-		}
-	}()
-	// userDescUsername is the schema descriptor for username field.
-	userDescUsername := userFields[2].Descriptor()
-	// user.UsernameValidator is a validator for the "username" field. It is called by the builders before save.
-	user.UsernameValidator = func() func(string) error {
-		validators := userDescUsername.Validators
-		fns := [...]func(string) error{
-			validators[0].(func(string) error),
-			validators[1].(func(string) error),
-		}
-		return func(username string) error {
-			for _, fn := range fns {
-				if err := fn(username); err != nil {
-					return err
-				}
-			}
-			return nil
-		}
-	}()
-	// userDescPassword is the schema descriptor for password field.
-	userDescPassword := userFields[3].Descriptor()
-	// user.PasswordValidator is a validator for the "password" field. It is called by the builders before save.
-	user.PasswordValidator = userDescPassword.Validators[0].(func(string) error)
+	// userDescUserVersion is the schema descriptor for user_version field.
+	userDescUserVersion := userFields[1].Descriptor()
+	// user.DefaultUserVersion holds the default value on creation for the user_version field.
+	user.DefaultUserVersion = userDescUserVersion.Default.(int64)
 	// userDescCreatedAt is the schema descriptor for created_at field.
-	userDescCreatedAt := userFields[5].Descriptor()
+	userDescCreatedAt := userFields[3].Descriptor()
 	// user.DefaultCreatedAt holds the default value on creation for the created_at field.
 	user.DefaultCreatedAt = userDescCreatedAt.Default.(func() time.Time)
 	// userDescUpdatedAt is the schema descriptor for updated_at field.
-	userDescUpdatedAt := userFields[6].Descriptor()
+	userDescUpdatedAt := userFields[4].Descriptor()
 	// user.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	user.DefaultUpdatedAt = userDescUpdatedAt.Default.(func() time.Time)
 	// user.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -125,16 +157,60 @@ func init() {
 	userDescID := userFields[0].Descriptor()
 	// user.IDValidator is a validator for the "id" field. It is called by the builders before save.
 	user.IDValidator = userDescID.Validators[0].(func(int64) error)
-	userappprofileFields := schema.UserAppProfile{}.Fields()
-	_ = userappprofileFields
-	// userappprofileDescFirstAuthorizedAt is the schema descriptor for first_authorized_at field.
-	userappprofileDescFirstAuthorizedAt := userappprofileFields[0].Descriptor()
-	// userappprofile.DefaultFirstAuthorizedAt holds the default value on creation for the first_authorized_at field.
-	userappprofile.DefaultFirstAuthorizedAt = userappprofileDescFirstAuthorizedAt.Default.(func() time.Time)
-	// userappprofileDescLastActiveAt is the schema descriptor for last_active_at field.
-	userappprofileDescLastActiveAt := userappprofileFields[1].Descriptor()
-	// userappprofile.DefaultLastActiveAt holds the default value on creation for the last_active_at field.
-	userappprofile.DefaultLastActiveAt = userappprofileDescLastActiveAt.Default.(func() time.Time)
-	// userappprofile.UpdateDefaultLastActiveAt holds the default value on update for the last_active_at field.
-	userappprofile.UpdateDefaultLastActiveAt = userappprofileDescLastActiveAt.UpdateDefault.(func() time.Time)
+	userappauthorizationFields := schema.UserAppAuthorization{}.Fields()
+	_ = userappauthorizationFields
+	// userappauthorizationDescScopes is the schema descriptor for scopes field.
+	userappauthorizationDescScopes := userappauthorizationFields[1].Descriptor()
+	// userappauthorization.DefaultScopes holds the default value on creation for the scopes field.
+	userappauthorization.DefaultScopes = userappauthorizationDescScopes.Default.([]string)
+	// userappauthorizationDescExtProfile is the schema descriptor for ext_profile field.
+	userappauthorizationDescExtProfile := userappauthorizationFields[2].Descriptor()
+	// userappauthorization.DefaultExtProfile holds the default value on creation for the ext_profile field.
+	userappauthorization.DefaultExtProfile = userappauthorizationDescExtProfile.Default.(map[string]interface{})
+	// userappauthorizationDescFirstAuthorizedAt is the schema descriptor for first_authorized_at field.
+	userappauthorizationDescFirstAuthorizedAt := userappauthorizationFields[3].Descriptor()
+	// userappauthorization.DefaultFirstAuthorizedAt holds the default value on creation for the first_authorized_at field.
+	userappauthorization.DefaultFirstAuthorizedAt = userappauthorizationDescFirstAuthorizedAt.Default.(func() time.Time)
+	// userappauthorizationDescLastActiveAt is the schema descriptor for last_active_at field.
+	userappauthorizationDescLastActiveAt := userappauthorizationFields[5].Descriptor()
+	// userappauthorization.DefaultLastActiveAt holds the default value on creation for the last_active_at field.
+	userappauthorization.DefaultLastActiveAt = userappauthorizationDescLastActiveAt.Default.(func() time.Time)
+	// userappauthorization.UpdateDefaultLastActiveAt holds the default value on update for the last_active_at field.
+	userappauthorization.UpdateDefaultLastActiveAt = userappauthorizationDescLastActiveAt.UpdateDefault.(func() time.Time)
+	useridentityFields := schema.UserIdentity{}.Fields()
+	_ = useridentityFields
+	// useridentityDescProviderUID is the schema descriptor for provider_uid field.
+	useridentityDescProviderUID := useridentityFields[1].Descriptor()
+	// useridentity.ProviderUIDValidator is a validator for the "provider_uid" field. It is called by the builders before save.
+	useridentity.ProviderUIDValidator = func() func(string) error {
+		validators := useridentityDescProviderUID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(provider_uid string) error {
+			for _, fn := range fns {
+				if err := fn(provider_uid); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// useridentityDescProviderUnionID is the schema descriptor for provider_union_id field.
+	useridentityDescProviderUnionID := useridentityFields[2].Descriptor()
+	// useridentity.ProviderUnionIDValidator is a validator for the "provider_union_id" field. It is called by the builders before save.
+	useridentity.ProviderUnionIDValidator = useridentityDescProviderUnionID.Validators[0].(func(string) error)
+	// useridentityDescLoginName is the schema descriptor for login_name field.
+	useridentityDescLoginName := useridentityFields[3].Descriptor()
+	// useridentity.LoginNameValidator is a validator for the "login_name" field. It is called by the builders before save.
+	useridentity.LoginNameValidator = useridentityDescLoginName.Validators[0].(func(string) error)
+	// useridentityDescLinkedAt is the schema descriptor for linked_at field.
+	useridentityDescLinkedAt := useridentityFields[6].Descriptor()
+	// useridentity.DefaultLinkedAt holds the default value on creation for the linked_at field.
+	useridentity.DefaultLinkedAt = useridentityDescLinkedAt.Default.(func() time.Time)
+	// useridentityDescMeta is the schema descriptor for meta field.
+	useridentityDescMeta := useridentityFields[8].Descriptor()
+	// useridentity.DefaultMeta holds the default value on creation for the meta field.
+	useridentity.DefaultMeta = useridentityDescMeta.Default.(map[string]interface{})
 }

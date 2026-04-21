@@ -9,8 +9,10 @@ import (
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/google/uuid"
 	"github.com/luckysxx/user-platform/internal/ent/app"
-	"github.com/luckysxx/user-platform/internal/ent/userappprofile"
+	"github.com/luckysxx/user-platform/internal/ent/session"
+	"github.com/luckysxx/user-platform/internal/ent/userappauthorization"
 )
 
 // AppCreate is the builder for creating a App entity.
@@ -32,19 +34,34 @@ func (_c *AppCreate) SetAppName(v string) *AppCreate {
 	return _c
 }
 
-// AddProfileIDs adds the "profiles" edge to the UserAppProfile entity by IDs.
-func (_c *AppCreate) AddProfileIDs(ids ...int) *AppCreate {
-	_c.mutation.AddProfileIDs(ids...)
+// AddAuthorizationIDs adds the "authorizations" edge to the UserAppAuthorization entity by IDs.
+func (_c *AppCreate) AddAuthorizationIDs(ids ...int) *AppCreate {
+	_c.mutation.AddAuthorizationIDs(ids...)
 	return _c
 }
 
-// AddProfiles adds the "profiles" edges to the UserAppProfile entity.
-func (_c *AppCreate) AddProfiles(v ...*UserAppProfile) *AppCreate {
+// AddAuthorizations adds the "authorizations" edges to the UserAppAuthorization entity.
+func (_c *AppCreate) AddAuthorizations(v ...*UserAppAuthorization) *AppCreate {
 	ids := make([]int, len(v))
 	for i := range v {
 		ids[i] = v[i].ID
 	}
-	return _c.AddProfileIDs(ids...)
+	return _c.AddAuthorizationIDs(ids...)
+}
+
+// AddSessionIDs adds the "sessions" edge to the Session entity by IDs.
+func (_c *AppCreate) AddSessionIDs(ids ...uuid.UUID) *AppCreate {
+	_c.mutation.AddSessionIDs(ids...)
+	return _c
+}
+
+// AddSessions adds the "sessions" edges to the Session entity.
+func (_c *AppCreate) AddSessions(v ...*Session) *AppCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddSessionIDs(ids...)
 }
 
 // Mutation returns the AppMutation object of the builder.
@@ -131,15 +148,31 @@ func (_c *AppCreate) createSpec() (*App, *sqlgraph.CreateSpec) {
 		_spec.SetField(app.FieldAppName, field.TypeString, value)
 		_node.AppName = value
 	}
-	if nodes := _c.mutation.ProfilesIDs(); len(nodes) > 0 {
+	if nodes := _c.mutation.AuthorizationsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   app.ProfilesTable,
-			Columns: []string{app.ProfilesColumn},
+			Table:   app.AuthorizationsTable,
+			Columns: []string{app.AuthorizationsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(userappprofile.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(userappauthorization.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.SessionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   app.SessionsTable,
+			Columns: []string{app.SessionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(session.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

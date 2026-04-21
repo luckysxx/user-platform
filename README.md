@@ -4,7 +4,8 @@ Go 微服务中台，提供统一账号注册、多应用登录鉴权、Session 
 
 ## 核心特性
 
-- **账号体系**：邮箱注册、密码加密、用户名唯一约束
+- **账号体系**：手机号必填注册、密码加密、用户名唯一约束
+- **双登录模式**：保留用户名/邮箱 + 密码登录，同时新增手机号验证码登录
 - **多应用鉴权**：携带 `app_code` 登录，签发 Access Token + Refresh Token，首次登录自动建立授权关系
 - **Session 管理**：设备级 Session 追踪、登出、Token 轮换刷新
 - **事件驱动**：Transactional Outbox 模式保证注册事件可靠投递至 Kafka
@@ -45,7 +46,7 @@ Go 微服务中台，提供统一账号注册、多应用登录鉴权、Session 
 │       ├── config/                # Viper 配置加载
 │       ├── database/              # PostgreSQL 初始化
 │       └── cache/                 # Redis 初始化
-├── configs/config.yaml            # 非敏感配置骨架
+├── .env.example                   # 环境变量模板
 ├── .env                           # 敏感凭证（不提交，见 .env.example）
 └── docker-compose-service.yaml    # 服务编排
 ```
@@ -78,22 +79,17 @@ make docker-down      # 停止并清理
 
 ## 配置说明
 
-### config.yaml（非敏感，提交到 Git）
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| `server.port` | HTTP 端口 | `8081` |
-| `grpc_server.port` | gRPC 端口 | `9091` |
-| `kafka.brokers` | Kafka 地址 | `global-kafka:9092` |
-| `kafka.topic_user_registered` | 用户注册事件 Topic | `user.registered` |
-| `id_generator.addr` | 发号器 gRPC 地址 | `id-generator:50059` |
-
-### .env（敏感，不提交）
+### .env（运行配置与敏感信息）
 | 变量 | 说明 |
 |------|------|
 | `APP_ENV` | 运行环境，影响日志颜色 |
+| `SERVER_PORT` | HTTP 监听端口 |
+| `GRPC_SERVER_PORT` | gRPC 监听端口 |
 | `DATABASE_SOURCE` | PostgreSQL 连接字符串 |
 | `REDIS_PASSWORD` | Redis 密码 |
 | `JWT_SECRET` | JWT 签名密钥 |
+| `KAFKA_BROKERS` | Kafka 地址 |
+| `ID_GENERATOR_ADDR` | 发号器 gRPC 地址 |
 
 ## HTTP API
 
@@ -103,12 +99,22 @@ Base URL: `http://localhost:8081/api/v1`
 # 注册
 curl -X POST localhost:8081/api/v1/users/register \
   -H 'Content-Type: application/json' \
-  -d '{"email":"alice@example.com","username":"alice123","password":"Password123"}'
+  -d '{"phone":"13800138000","email":"alice@example.com","username":"alice123","password":"Password123"}'
 
 # 登录
 curl -X POST localhost:8081/api/v1/users/login \
   -H 'Content-Type: application/json' \
-  -d '{"username":"alice123","password":"Password123","app_code":"tomato_novel"}'
+  -d '{"username":"alice123","password":"Password123","app_code":"go-note","device_id":"macbook-user-1"}'
+
+# 发送手机号验证码（开发环境会在 debug_code 返回验证码，便于 curl 联调）
+curl -X POST localhost:8081/api/v1/users/phone/code \
+  -H 'Content-Type: application/json' \
+  -d '{"phone":"13800138000","scene":"login"}'
+
+# 手机号验证码登录/注册一体化入口
+curl -X POST localhost:8081/api/v1/users/phone/entry \
+  -H 'Content-Type: application/json' \
+  -d '{"phone":"13800138000","verification_code":"123456","app_code":"go-note","device_id":"macbook-user-1"}'
 
 # 刷新 Token
 curl -X POST localhost:8081/api/v1/users/refresh \
@@ -118,7 +124,8 @@ curl -X POST localhost:8081/api/v1/users/refresh \
 # 登出
 curl -X POST localhost:8081/api/v1/users/logout \
   -H 'Content-Type: application/json' \
-  -d '{"token":"<refresh_token>"}'
+  -H 'Authorization: Bearer <access_token>' \
+  -d '{"device_id":"macbook-user-1"}'
 ```
 
 ## gRPC API
@@ -127,12 +134,20 @@ curl -X POST localhost:8081/api/v1/users/logout \
 
 ```bash
 # 注册
-grpcurl -plaintext -d '{"email":"alice@example.com","username":"alice123","password":"Password123"}' \
+grpcurl -plaintext -d '{"phone":"13800138000","email":"alice@example.com","username":"alice123","password":"Password123"}' \
   localhost:9091 user.UserService/Register
 
 # 登录
-grpcurl -plaintext -d '{"username":"alice123","password":"Password123","app_code":"tomato_novel"}' \
+grpcurl -plaintext -d '{"username":"alice123","password":"Password123","app_code":"go-note","device_id":"macbook-user-1"}' \
   localhost:9091 user.AuthService/Login
+
+# 发送手机号验证码
+grpcurl -plaintext -d '{"phone":"13800138000","scene":"login"}' \
+  localhost:9091 user.AuthService/SendPhoneCode
+
+# 手机号验证码登录/注册
+grpcurl -plaintext -d '{"phone":"13800138000","verification_code":"123456","app_code":"go-note","device_id":"macbook-user-1"}' \
+  localhost:9091 user.AuthService/PhoneAuthEntry
 ```
 
 ## 架构亮点

@@ -10,9 +10,13 @@ import (
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/google/uuid"
 	"github.com/luckysxx/user-platform/internal/ent/profile"
+	"github.com/luckysxx/user-platform/internal/ent/session"
+	"github.com/luckysxx/user-platform/internal/ent/ssosession"
 	"github.com/luckysxx/user-platform/internal/ent/user"
-	"github.com/luckysxx/user-platform/internal/ent/userappprofile"
+	"github.com/luckysxx/user-platform/internal/ent/userappauthorization"
+	"github.com/luckysxx/user-platform/internal/ent/useridentity"
 )
 
 // UserCreate is the builder for creating a User entity.
@@ -22,21 +26,17 @@ type UserCreate struct {
 	hooks    []Hook
 }
 
-// SetEmail sets the "email" field.
-func (_c *UserCreate) SetEmail(v string) *UserCreate {
-	_c.mutation.SetEmail(v)
+// SetUserVersion sets the "user_version" field.
+func (_c *UserCreate) SetUserVersion(v int64) *UserCreate {
+	_c.mutation.SetUserVersion(v)
 	return _c
 }
 
-// SetUsername sets the "username" field.
-func (_c *UserCreate) SetUsername(v string) *UserCreate {
-	_c.mutation.SetUsername(v)
-	return _c
-}
-
-// SetPassword sets the "password" field.
-func (_c *UserCreate) SetPassword(v string) *UserCreate {
-	_c.mutation.SetPassword(v)
+// SetNillableUserVersion sets the "user_version" field if the given value is not nil.
+func (_c *UserCreate) SetNillableUserVersion(v *int64) *UserCreate {
+	if v != nil {
+		_c.SetUserVersion(*v)
+	}
 	return _c
 }
 
@@ -88,21 +88,6 @@ func (_c *UserCreate) SetID(v int64) *UserCreate {
 	return _c
 }
 
-// AddProfileIDs adds the "profiles" edge to the UserAppProfile entity by IDs.
-func (_c *UserCreate) AddProfileIDs(ids ...int) *UserCreate {
-	_c.mutation.AddProfileIDs(ids...)
-	return _c
-}
-
-// AddProfiles adds the "profiles" edges to the UserAppProfile entity.
-func (_c *UserCreate) AddProfiles(v ...*UserAppProfile) *UserCreate {
-	ids := make([]int, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _c.AddProfileIDs(ids...)
-}
-
 // SetProfileID sets the "profile" edge to the Profile entity by ID.
 func (_c *UserCreate) SetProfileID(id int64) *UserCreate {
 	_c.mutation.SetProfileID(id)
@@ -120,6 +105,66 @@ func (_c *UserCreate) SetNillableProfileID(id *int64) *UserCreate {
 // SetProfile sets the "profile" edge to the Profile entity.
 func (_c *UserCreate) SetProfile(v *Profile) *UserCreate {
 	return _c.SetProfileID(v.ID)
+}
+
+// AddIdentityIDs adds the "identities" edge to the UserIdentity entity by IDs.
+func (_c *UserCreate) AddIdentityIDs(ids ...int) *UserCreate {
+	_c.mutation.AddIdentityIDs(ids...)
+	return _c
+}
+
+// AddIdentities adds the "identities" edges to the UserIdentity entity.
+func (_c *UserCreate) AddIdentities(v ...*UserIdentity) *UserCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddIdentityIDs(ids...)
+}
+
+// AddAuthorizationIDs adds the "authorizations" edge to the UserAppAuthorization entity by IDs.
+func (_c *UserCreate) AddAuthorizationIDs(ids ...int) *UserCreate {
+	_c.mutation.AddAuthorizationIDs(ids...)
+	return _c
+}
+
+// AddAuthorizations adds the "authorizations" edges to the UserAppAuthorization entity.
+func (_c *UserCreate) AddAuthorizations(v ...*UserAppAuthorization) *UserCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddAuthorizationIDs(ids...)
+}
+
+// AddSSOSessionIDs adds the "sso_sessions" edge to the SsoSession entity by IDs.
+func (_c *UserCreate) AddSSOSessionIDs(ids ...uuid.UUID) *UserCreate {
+	_c.mutation.AddSSOSessionIDs(ids...)
+	return _c
+}
+
+// AddSSOSessions adds the "sso_sessions" edges to the SsoSession entity.
+func (_c *UserCreate) AddSSOSessions(v ...*SsoSession) *UserCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddSSOSessionIDs(ids...)
+}
+
+// AddSessionIDs adds the "sessions" edge to the Session entity by IDs.
+func (_c *UserCreate) AddSessionIDs(ids ...uuid.UUID) *UserCreate {
+	_c.mutation.AddSessionIDs(ids...)
+	return _c
+}
+
+// AddSessions adds the "sessions" edges to the Session entity.
+func (_c *UserCreate) AddSessions(v ...*Session) *UserCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddSessionIDs(ids...)
 }
 
 // Mutation returns the UserMutation object of the builder.
@@ -157,6 +202,10 @@ func (_c *UserCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *UserCreate) defaults() {
+	if _, ok := _c.mutation.UserVersion(); !ok {
+		v := user.DefaultUserVersion
+		_c.mutation.SetUserVersion(v)
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := user.DefaultStatus
 		_c.mutation.SetStatus(v)
@@ -173,29 +222,8 @@ func (_c *UserCreate) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_c *UserCreate) check() error {
-	if _, ok := _c.mutation.Email(); !ok {
-		return &ValidationError{Name: "email", err: errors.New(`ent: missing required field "User.email"`)}
-	}
-	if v, ok := _c.mutation.Email(); ok {
-		if err := user.EmailValidator(v); err != nil {
-			return &ValidationError{Name: "email", err: fmt.Errorf(`ent: validator failed for field "User.email": %w`, err)}
-		}
-	}
-	if _, ok := _c.mutation.Username(); !ok {
-		return &ValidationError{Name: "username", err: errors.New(`ent: missing required field "User.username"`)}
-	}
-	if v, ok := _c.mutation.Username(); ok {
-		if err := user.UsernameValidator(v); err != nil {
-			return &ValidationError{Name: "username", err: fmt.Errorf(`ent: validator failed for field "User.username": %w`, err)}
-		}
-	}
-	if _, ok := _c.mutation.Password(); !ok {
-		return &ValidationError{Name: "password", err: errors.New(`ent: missing required field "User.password"`)}
-	}
-	if v, ok := _c.mutation.Password(); ok {
-		if err := user.PasswordValidator(v); err != nil {
-			return &ValidationError{Name: "password", err: fmt.Errorf(`ent: validator failed for field "User.password": %w`, err)}
-		}
+	if _, ok := _c.mutation.UserVersion(); !ok {
+		return &ValidationError{Name: "user_version", err: errors.New(`ent: missing required field "User.user_version"`)}
 	}
 	if _, ok := _c.mutation.Status(); !ok {
 		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "User.status"`)}
@@ -248,17 +276,9 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 		_node.ID = id
 		_spec.ID.Value = id
 	}
-	if value, ok := _c.mutation.Email(); ok {
-		_spec.SetField(user.FieldEmail, field.TypeString, value)
-		_node.Email = value
-	}
-	if value, ok := _c.mutation.Username(); ok {
-		_spec.SetField(user.FieldUsername, field.TypeString, value)
-		_node.Username = value
-	}
-	if value, ok := _c.mutation.Password(); ok {
-		_spec.SetField(user.FieldPassword, field.TypeString, value)
-		_node.Password = value
+	if value, ok := _c.mutation.UserVersion(); ok {
+		_spec.SetField(user.FieldUserVersion, field.TypeInt64, value)
+		_node.UserVersion = value
 	}
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(user.FieldStatus, field.TypeEnum, value)
@@ -272,22 +292,6 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 		_spec.SetField(user.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
 	}
-	if nodes := _c.mutation.ProfilesIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   user.ProfilesTable,
-			Columns: []string{user.ProfilesColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(userappprofile.FieldID, field.TypeInt),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges = append(_spec.Edges, edge)
-	}
 	if nodes := _c.mutation.ProfileIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2O,
@@ -297,6 +301,70 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(profile.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.IdentitiesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.IdentitiesTable,
+			Columns: []string{user.IdentitiesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(useridentity.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.AuthorizationsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.AuthorizationsTable,
+			Columns: []string{user.AuthorizationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userappauthorization.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.SSOSessionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.SSOSessionsTable,
+			Columns: []string{user.SSOSessionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(ssosession.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.SessionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.SessionsTable,
+			Columns: []string{user.SessionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(session.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

@@ -16,17 +16,26 @@ const (
 	FieldAppCode = "app_code"
 	// FieldAppName holds the string denoting the app_name field in the database.
 	FieldAppName = "app_name"
-	// EdgeProfiles holds the string denoting the profiles edge name in mutations.
-	EdgeProfiles = "profiles"
+	// EdgeAuthorizations holds the string denoting the authorizations edge name in mutations.
+	EdgeAuthorizations = "authorizations"
+	// EdgeSessions holds the string denoting the sessions edge name in mutations.
+	EdgeSessions = "sessions"
 	// Table holds the table name of the app in the database.
 	Table = "apps"
-	// ProfilesTable is the table that holds the profiles relation/edge.
-	ProfilesTable = "user_app_profiles"
-	// ProfilesInverseTable is the table name for the UserAppProfile entity.
-	// It exists in this package in order to avoid circular dependency with the "userappprofile" package.
-	ProfilesInverseTable = "user_app_profiles"
-	// ProfilesColumn is the table column denoting the profiles relation/edge.
-	ProfilesColumn = "app_profiles"
+	// AuthorizationsTable is the table that holds the authorizations relation/edge.
+	AuthorizationsTable = "user_app_authorizations"
+	// AuthorizationsInverseTable is the table name for the UserAppAuthorization entity.
+	// It exists in this package in order to avoid circular dependency with the "userappauthorization" package.
+	AuthorizationsInverseTable = "user_app_authorizations"
+	// AuthorizationsColumn is the table column denoting the authorizations relation/edge.
+	AuthorizationsColumn = "app_authorizations"
+	// SessionsTable is the table that holds the sessions relation/edge.
+	SessionsTable = "sessions"
+	// SessionsInverseTable is the table name for the Session entity.
+	// It exists in this package in order to avoid circular dependency with the "session" package.
+	SessionsInverseTable = "sessions"
+	// SessionsColumn is the table column denoting the sessions relation/edge.
+	SessionsColumn = "app_sessions"
 )
 
 // Columns holds all SQL columns for app fields.
@@ -71,23 +80,44 @@ func ByAppName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAppName, opts...).ToFunc()
 }
 
-// ByProfilesCount orders the results by profiles count.
-func ByProfilesCount(opts ...sql.OrderTermOption) OrderOption {
+// ByAuthorizationsCount orders the results by authorizations count.
+func ByAuthorizationsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newProfilesStep(), opts...)
+		sqlgraph.OrderByNeighborsCount(s, newAuthorizationsStep(), opts...)
 	}
 }
 
-// ByProfiles orders the results by profiles terms.
-func ByProfiles(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+// ByAuthorizations orders the results by authorizations terms.
+func ByAuthorizations(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newProfilesStep(), append([]sql.OrderTerm{term}, terms...)...)
+		sqlgraph.OrderByNeighborTerms(s, newAuthorizationsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
-func newProfilesStep() *sqlgraph.Step {
+
+// BySessionsCount orders the results by sessions count.
+func BySessionsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newSessionsStep(), opts...)
+	}
+}
+
+// BySessions orders the results by sessions terms.
+func BySessions(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newSessionsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+func newAuthorizationsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(ProfilesInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.O2M, false, ProfilesTable, ProfilesColumn),
+		sqlgraph.To(AuthorizationsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, AuthorizationsTable, AuthorizationsColumn),
+	)
+}
+func newSessionsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(SessionsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, SessionsTable, SessionsColumn),
 	)
 }

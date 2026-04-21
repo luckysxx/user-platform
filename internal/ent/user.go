@@ -18,12 +18,8 @@ type User struct {
 	config `json:"-"`
 	// ID of the ent.
 	ID int64 `json:"id,omitempty"`
-	// 用户邮箱，唯一索引
-	Email string `json:"email,omitempty"`
-	// 用户登录名
-	Username string `json:"username,omitempty"`
-	// 加密后的密码哈希
-	Password string `json:"-"`
+	// 用户全局版本
+	UserVersion int64 `json:"user_version,omitempty"`
 	// 用户账号状态
 	Status user.Status `json:"status,omitempty"`
 	// 创建时间
@@ -38,22 +34,19 @@ type User struct {
 
 // UserEdges holds the relations/edges for other nodes in the graph.
 type UserEdges struct {
-	// Profiles holds the value of the profiles edge.
-	Profiles []*UserAppProfile `json:"profiles,omitempty"`
 	// Profile holds the value of the profile edge.
 	Profile *Profile `json:"profile,omitempty"`
+	// Identities holds the value of the identities edge.
+	Identities []*UserIdentity `json:"identities,omitempty"`
+	// Authorizations holds the value of the authorizations edge.
+	Authorizations []*UserAppAuthorization `json:"authorizations,omitempty"`
+	// SSOSessions holds the value of the sso_sessions edge.
+	SSOSessions []*SsoSession `json:"sso_sessions,omitempty"`
+	// Sessions holds the value of the sessions edge.
+	Sessions []*Session `json:"sessions,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
-}
-
-// ProfilesOrErr returns the Profiles value or an error if the edge
-// was not loaded in eager-loading.
-func (e UserEdges) ProfilesOrErr() ([]*UserAppProfile, error) {
-	if e.loadedTypes[0] {
-		return e.Profiles, nil
-	}
-	return nil, &NotLoadedError{edge: "profiles"}
+	loadedTypes [5]bool
 }
 
 // ProfileOrErr returns the Profile value or an error if the edge
@@ -61,10 +54,46 @@ func (e UserEdges) ProfilesOrErr() ([]*UserAppProfile, error) {
 func (e UserEdges) ProfileOrErr() (*Profile, error) {
 	if e.Profile != nil {
 		return e.Profile, nil
-	} else if e.loadedTypes[1] {
+	} else if e.loadedTypes[0] {
 		return nil, &NotFoundError{label: profile.Label}
 	}
 	return nil, &NotLoadedError{edge: "profile"}
+}
+
+// IdentitiesOrErr returns the Identities value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) IdentitiesOrErr() ([]*UserIdentity, error) {
+	if e.loadedTypes[1] {
+		return e.Identities, nil
+	}
+	return nil, &NotLoadedError{edge: "identities"}
+}
+
+// AuthorizationsOrErr returns the Authorizations value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) AuthorizationsOrErr() ([]*UserAppAuthorization, error) {
+	if e.loadedTypes[2] {
+		return e.Authorizations, nil
+	}
+	return nil, &NotLoadedError{edge: "authorizations"}
+}
+
+// SSOSessionsOrErr returns the SSOSessions value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) SSOSessionsOrErr() ([]*SsoSession, error) {
+	if e.loadedTypes[3] {
+		return e.SSOSessions, nil
+	}
+	return nil, &NotLoadedError{edge: "sso_sessions"}
+}
+
+// SessionsOrErr returns the Sessions value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) SessionsOrErr() ([]*Session, error) {
+	if e.loadedTypes[4] {
+		return e.Sessions, nil
+	}
+	return nil, &NotLoadedError{edge: "sessions"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -72,9 +101,9 @@ func (*User) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case user.FieldID:
+		case user.FieldID, user.FieldUserVersion:
 			values[i] = new(sql.NullInt64)
-		case user.FieldEmail, user.FieldUsername, user.FieldPassword, user.FieldStatus:
+		case user.FieldStatus:
 			values[i] = new(sql.NullString)
 		case user.FieldCreatedAt, user.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -99,23 +128,11 @@ func (_m *User) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field id", value)
 			}
 			_m.ID = int64(value.Int64)
-		case user.FieldEmail:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field email", values[i])
+		case user.FieldUserVersion:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field user_version", values[i])
 			} else if value.Valid {
-				_m.Email = value.String
-			}
-		case user.FieldUsername:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field username", values[i])
-			} else if value.Valid {
-				_m.Username = value.String
-			}
-		case user.FieldPassword:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field password", values[i])
-			} else if value.Valid {
-				_m.Password = value.String
+				_m.UserVersion = value.Int64
 			}
 		case user.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -148,14 +165,29 @@ func (_m *User) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
 }
 
-// QueryProfiles queries the "profiles" edge of the User entity.
-func (_m *User) QueryProfiles() *UserAppProfileQuery {
-	return NewUserClient(_m.config).QueryProfiles(_m)
-}
-
 // QueryProfile queries the "profile" edge of the User entity.
 func (_m *User) QueryProfile() *ProfileQuery {
 	return NewUserClient(_m.config).QueryProfile(_m)
+}
+
+// QueryIdentities queries the "identities" edge of the User entity.
+func (_m *User) QueryIdentities() *UserIdentityQuery {
+	return NewUserClient(_m.config).QueryIdentities(_m)
+}
+
+// QueryAuthorizations queries the "authorizations" edge of the User entity.
+func (_m *User) QueryAuthorizations() *UserAppAuthorizationQuery {
+	return NewUserClient(_m.config).QueryAuthorizations(_m)
+}
+
+// QuerySSOSessions queries the "sso_sessions" edge of the User entity.
+func (_m *User) QuerySSOSessions() *SsoSessionQuery {
+	return NewUserClient(_m.config).QuerySSOSessions(_m)
+}
+
+// QuerySessions queries the "sessions" edge of the User entity.
+func (_m *User) QuerySessions() *SessionQuery {
+	return NewUserClient(_m.config).QuerySessions(_m)
 }
 
 // Update returns a builder for updating this User.
@@ -181,13 +213,8 @@ func (_m *User) String() string {
 	var builder strings.Builder
 	builder.WriteString("User(")
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
-	builder.WriteString("email=")
-	builder.WriteString(_m.Email)
-	builder.WriteString(", ")
-	builder.WriteString("username=")
-	builder.WriteString(_m.Username)
-	builder.WriteString(", ")
-	builder.WriteString("password=<sensitive>")
+	builder.WriteString("user_version=")
+	builder.WriteString(fmt.Sprintf("%v", _m.UserVersion))
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Status))

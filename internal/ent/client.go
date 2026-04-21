@@ -9,6 +9,7 @@ import (
 	"log"
 	"reflect"
 
+	"github.com/google/uuid"
 	"github.com/luckysxx/user-platform/internal/ent/migrate"
 
 	"entgo.io/ent"
@@ -18,8 +19,11 @@ import (
 	"github.com/luckysxx/user-platform/internal/ent/app"
 	"github.com/luckysxx/user-platform/internal/ent/eventoutbox"
 	"github.com/luckysxx/user-platform/internal/ent/profile"
+	"github.com/luckysxx/user-platform/internal/ent/session"
+	"github.com/luckysxx/user-platform/internal/ent/ssosession"
 	"github.com/luckysxx/user-platform/internal/ent/user"
-	"github.com/luckysxx/user-platform/internal/ent/userappprofile"
+	"github.com/luckysxx/user-platform/internal/ent/userappauthorization"
+	"github.com/luckysxx/user-platform/internal/ent/useridentity"
 )
 
 // Client is the client that holds all ent builders.
@@ -33,10 +37,16 @@ type Client struct {
 	EventOutbox *EventOutboxClient
 	// Profile is the client for interacting with the Profile builders.
 	Profile *ProfileClient
+	// Session is the client for interacting with the Session builders.
+	Session *SessionClient
+	// SsoSession is the client for interacting with the SsoSession builders.
+	SsoSession *SsoSessionClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
-	// UserAppProfile is the client for interacting with the UserAppProfile builders.
-	UserAppProfile *UserAppProfileClient
+	// UserAppAuthorization is the client for interacting with the UserAppAuthorization builders.
+	UserAppAuthorization *UserAppAuthorizationClient
+	// UserIdentity is the client for interacting with the UserIdentity builders.
+	UserIdentity *UserIdentityClient
 }
 
 // NewClient creates a new client configured with the given options.
@@ -51,8 +61,11 @@ func (c *Client) init() {
 	c.App = NewAppClient(c.config)
 	c.EventOutbox = NewEventOutboxClient(c.config)
 	c.Profile = NewProfileClient(c.config)
+	c.Session = NewSessionClient(c.config)
+	c.SsoSession = NewSsoSessionClient(c.config)
 	c.User = NewUserClient(c.config)
-	c.UserAppProfile = NewUserAppProfileClient(c.config)
+	c.UserAppAuthorization = NewUserAppAuthorizationClient(c.config)
+	c.UserIdentity = NewUserIdentityClient(c.config)
 }
 
 type (
@@ -143,13 +156,16 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:            ctx,
-		config:         cfg,
-		App:            NewAppClient(cfg),
-		EventOutbox:    NewEventOutboxClient(cfg),
-		Profile:        NewProfileClient(cfg),
-		User:           NewUserClient(cfg),
-		UserAppProfile: NewUserAppProfileClient(cfg),
+		ctx:                  ctx,
+		config:               cfg,
+		App:                  NewAppClient(cfg),
+		EventOutbox:          NewEventOutboxClient(cfg),
+		Profile:              NewProfileClient(cfg),
+		Session:              NewSessionClient(cfg),
+		SsoSession:           NewSsoSessionClient(cfg),
+		User:                 NewUserClient(cfg),
+		UserAppAuthorization: NewUserAppAuthorizationClient(cfg),
+		UserIdentity:         NewUserIdentityClient(cfg),
 	}, nil
 }
 
@@ -167,13 +183,16 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:            ctx,
-		config:         cfg,
-		App:            NewAppClient(cfg),
-		EventOutbox:    NewEventOutboxClient(cfg),
-		Profile:        NewProfileClient(cfg),
-		User:           NewUserClient(cfg),
-		UserAppProfile: NewUserAppProfileClient(cfg),
+		ctx:                  ctx,
+		config:               cfg,
+		App:                  NewAppClient(cfg),
+		EventOutbox:          NewEventOutboxClient(cfg),
+		Profile:              NewProfileClient(cfg),
+		Session:              NewSessionClient(cfg),
+		SsoSession:           NewSsoSessionClient(cfg),
+		User:                 NewUserClient(cfg),
+		UserAppAuthorization: NewUserAppAuthorizationClient(cfg),
+		UserIdentity:         NewUserIdentityClient(cfg),
 	}, nil
 }
 
@@ -202,21 +221,23 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
-	c.App.Use(hooks...)
-	c.EventOutbox.Use(hooks...)
-	c.Profile.Use(hooks...)
-	c.User.Use(hooks...)
-	c.UserAppProfile.Use(hooks...)
+	for _, n := range []interface{ Use(...Hook) }{
+		c.App, c.EventOutbox, c.Profile, c.Session, c.SsoSession, c.User,
+		c.UserAppAuthorization, c.UserIdentity,
+	} {
+		n.Use(hooks...)
+	}
 }
 
 // Intercept adds the query interceptors to all the entity clients.
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
-	c.App.Intercept(interceptors...)
-	c.EventOutbox.Intercept(interceptors...)
-	c.Profile.Intercept(interceptors...)
-	c.User.Intercept(interceptors...)
-	c.UserAppProfile.Intercept(interceptors...)
+	for _, n := range []interface{ Intercept(...Interceptor) }{
+		c.App, c.EventOutbox, c.Profile, c.Session, c.SsoSession, c.User,
+		c.UserAppAuthorization, c.UserIdentity,
+	} {
+		n.Intercept(interceptors...)
+	}
 }
 
 // Mutate implements the ent.Mutator interface.
@@ -228,10 +249,16 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.EventOutbox.mutate(ctx, m)
 	case *ProfileMutation:
 		return c.Profile.mutate(ctx, m)
+	case *SessionMutation:
+		return c.Session.mutate(ctx, m)
+	case *SsoSessionMutation:
+		return c.SsoSession.mutate(ctx, m)
 	case *UserMutation:
 		return c.User.mutate(ctx, m)
-	case *UserAppProfileMutation:
-		return c.UserAppProfile.mutate(ctx, m)
+	case *UserAppAuthorizationMutation:
+		return c.UserAppAuthorization.mutate(ctx, m)
+	case *UserIdentityMutation:
+		return c.UserIdentity.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
 	}
@@ -345,15 +372,31 @@ func (c *AppClient) GetX(ctx context.Context, id int) *App {
 	return obj
 }
 
-// QueryProfiles queries the profiles edge of a App.
-func (c *AppClient) QueryProfiles(_m *App) *UserAppProfileQuery {
-	query := (&UserAppProfileClient{config: c.config}).Query()
+// QueryAuthorizations queries the authorizations edge of a App.
+func (c *AppClient) QueryAuthorizations(_m *App) *UserAppAuthorizationQuery {
+	query := (&UserAppAuthorizationClient{config: c.config}).Query()
 	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
 		id := _m.ID
 		step := sqlgraph.NewStep(
 			sqlgraph.From(app.Table, app.FieldID, id),
-			sqlgraph.To(userappprofile.Table, userappprofile.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, app.ProfilesTable, app.ProfilesColumn),
+			sqlgraph.To(userappauthorization.Table, userappauthorization.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, app.AuthorizationsTable, app.AuthorizationsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QuerySessions queries the sessions edge of a App.
+func (c *AppClient) QuerySessions(_m *App) *SessionQuery {
+	query := (&SessionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(app.Table, app.FieldID, id),
+			sqlgraph.To(session.Table, session.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, app.SessionsTable, app.SessionsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -668,6 +711,384 @@ func (c *ProfileClient) mutate(ctx context.Context, m *ProfileMutation) (Value, 
 	}
 }
 
+// SessionClient is a client for the Session schema.
+type SessionClient struct {
+	config
+}
+
+// NewSessionClient returns a client for the Session from the given config.
+func NewSessionClient(c config) *SessionClient {
+	return &SessionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `session.Hooks(f(g(h())))`.
+func (c *SessionClient) Use(hooks ...Hook) {
+	c.hooks.Session = append(c.hooks.Session, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `session.Intercept(f(g(h())))`.
+func (c *SessionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Session = append(c.inters.Session, interceptors...)
+}
+
+// Create returns a builder for creating a Session entity.
+func (c *SessionClient) Create() *SessionCreate {
+	mutation := newSessionMutation(c.config, OpCreate)
+	return &SessionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Session entities.
+func (c *SessionClient) CreateBulk(builders ...*SessionCreate) *SessionCreateBulk {
+	return &SessionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *SessionClient) MapCreateBulk(slice any, setFunc func(*SessionCreate, int)) *SessionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &SessionCreateBulk{err: fmt.Errorf("calling to SessionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*SessionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &SessionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Session.
+func (c *SessionClient) Update() *SessionUpdate {
+	mutation := newSessionMutation(c.config, OpUpdate)
+	return &SessionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SessionClient) UpdateOne(_m *Session) *SessionUpdateOne {
+	mutation := newSessionMutation(c.config, OpUpdateOne, withSession(_m))
+	return &SessionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SessionClient) UpdateOneID(id uuid.UUID) *SessionUpdateOne {
+	mutation := newSessionMutation(c.config, OpUpdateOne, withSessionID(id))
+	return &SessionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Session.
+func (c *SessionClient) Delete() *SessionDelete {
+	mutation := newSessionMutation(c.config, OpDelete)
+	return &SessionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SessionClient) DeleteOne(_m *Session) *SessionDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SessionClient) DeleteOneID(id uuid.UUID) *SessionDeleteOne {
+	builder := c.Delete().Where(session.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SessionDeleteOne{builder}
+}
+
+// Query returns a query builder for Session.
+func (c *SessionClient) Query() *SessionQuery {
+	return &SessionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSession},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Session entity by its id.
+func (c *SessionClient) Get(ctx context.Context, id uuid.UUID) (*Session, error) {
+	return c.Query().Where(session.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SessionClient) GetX(ctx context.Context, id uuid.UUID) *Session {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryUser queries the user edge of a Session.
+func (c *SessionClient) QueryUser(_m *Session) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(session.Table, session.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, session.UserTable, session.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryApp queries the app edge of a Session.
+func (c *SessionClient) QueryApp(_m *Session) *AppQuery {
+	query := (&AppClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(session.Table, session.FieldID, id),
+			sqlgraph.To(app.Table, app.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, session.AppTable, session.AppColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QuerySSOSession queries the sso_session edge of a Session.
+func (c *SessionClient) QuerySSOSession(_m *Session) *SsoSessionQuery {
+	query := (&SsoSessionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(session.Table, session.FieldID, id),
+			sqlgraph.To(ssosession.Table, ssosession.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, session.SSOSessionTable, session.SSOSessionColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryIdentity queries the identity edge of a Session.
+func (c *SessionClient) QueryIdentity(_m *Session) *UserIdentityQuery {
+	query := (&UserIdentityClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(session.Table, session.FieldID, id),
+			sqlgraph.To(useridentity.Table, useridentity.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, session.IdentityTable, session.IdentityColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *SessionClient) Hooks() []Hook {
+	return c.hooks.Session
+}
+
+// Interceptors returns the client interceptors.
+func (c *SessionClient) Interceptors() []Interceptor {
+	return c.inters.Session
+}
+
+func (c *SessionClient) mutate(ctx context.Context, m *SessionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SessionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SessionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SessionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SessionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Session mutation op: %q", m.Op())
+	}
+}
+
+// SsoSessionClient is a client for the SsoSession schema.
+type SsoSessionClient struct {
+	config
+}
+
+// NewSsoSessionClient returns a client for the SsoSession from the given config.
+func NewSsoSessionClient(c config) *SsoSessionClient {
+	return &SsoSessionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `ssosession.Hooks(f(g(h())))`.
+func (c *SsoSessionClient) Use(hooks ...Hook) {
+	c.hooks.SsoSession = append(c.hooks.SsoSession, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `ssosession.Intercept(f(g(h())))`.
+func (c *SsoSessionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.SsoSession = append(c.inters.SsoSession, interceptors...)
+}
+
+// Create returns a builder for creating a SsoSession entity.
+func (c *SsoSessionClient) Create() *SsoSessionCreate {
+	mutation := newSsoSessionMutation(c.config, OpCreate)
+	return &SsoSessionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of SsoSession entities.
+func (c *SsoSessionClient) CreateBulk(builders ...*SsoSessionCreate) *SsoSessionCreateBulk {
+	return &SsoSessionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *SsoSessionClient) MapCreateBulk(slice any, setFunc func(*SsoSessionCreate, int)) *SsoSessionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &SsoSessionCreateBulk{err: fmt.Errorf("calling to SsoSessionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*SsoSessionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &SsoSessionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for SsoSession.
+func (c *SsoSessionClient) Update() *SsoSessionUpdate {
+	mutation := newSsoSessionMutation(c.config, OpUpdate)
+	return &SsoSessionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SsoSessionClient) UpdateOne(_m *SsoSession) *SsoSessionUpdateOne {
+	mutation := newSsoSessionMutation(c.config, OpUpdateOne, withSsoSession(_m))
+	return &SsoSessionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SsoSessionClient) UpdateOneID(id uuid.UUID) *SsoSessionUpdateOne {
+	mutation := newSsoSessionMutation(c.config, OpUpdateOne, withSsoSessionID(id))
+	return &SsoSessionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for SsoSession.
+func (c *SsoSessionClient) Delete() *SsoSessionDelete {
+	mutation := newSsoSessionMutation(c.config, OpDelete)
+	return &SsoSessionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SsoSessionClient) DeleteOne(_m *SsoSession) *SsoSessionDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SsoSessionClient) DeleteOneID(id uuid.UUID) *SsoSessionDeleteOne {
+	builder := c.Delete().Where(ssosession.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SsoSessionDeleteOne{builder}
+}
+
+// Query returns a query builder for SsoSession.
+func (c *SsoSessionClient) Query() *SsoSessionQuery {
+	return &SsoSessionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSsoSession},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a SsoSession entity by its id.
+func (c *SsoSessionClient) Get(ctx context.Context, id uuid.UUID) (*SsoSession, error) {
+	return c.Query().Where(ssosession.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SsoSessionClient) GetX(ctx context.Context, id uuid.UUID) *SsoSession {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryUser queries the user edge of a SsoSession.
+func (c *SsoSessionClient) QueryUser(_m *SsoSession) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(ssosession.Table, ssosession.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, ssosession.UserTable, ssosession.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryIdentity queries the identity edge of a SsoSession.
+func (c *SsoSessionClient) QueryIdentity(_m *SsoSession) *UserIdentityQuery {
+	query := (&UserIdentityClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(ssosession.Table, ssosession.FieldID, id),
+			sqlgraph.To(useridentity.Table, useridentity.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, ssosession.IdentityTable, ssosession.IdentityColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QuerySessions queries the sessions edge of a SsoSession.
+func (c *SsoSessionClient) QuerySessions(_m *SsoSession) *SessionQuery {
+	query := (&SessionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(ssosession.Table, ssosession.FieldID, id),
+			sqlgraph.To(session.Table, session.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ssosession.SessionsTable, ssosession.SessionsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *SsoSessionClient) Hooks() []Hook {
+	return c.hooks.SsoSession
+}
+
+// Interceptors returns the client interceptors.
+func (c *SsoSessionClient) Interceptors() []Interceptor {
+	return c.inters.SsoSession
+}
+
+func (c *SsoSessionClient) mutate(ctx context.Context, m *SsoSessionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SsoSessionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SsoSessionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SsoSessionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SsoSessionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown SsoSession mutation op: %q", m.Op())
+	}
+}
+
 // UserClient is a client for the User schema.
 type UserClient struct {
 	config
@@ -776,22 +1197,6 @@ func (c *UserClient) GetX(ctx context.Context, id int64) *User {
 	return obj
 }
 
-// QueryProfiles queries the profiles edge of a User.
-func (c *UserClient) QueryProfiles(_m *User) *UserAppProfileQuery {
-	query := (&UserAppProfileClient{config: c.config}).Query()
-	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
-		id := _m.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(user.Table, user.FieldID, id),
-			sqlgraph.To(userappprofile.Table, userappprofile.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, user.ProfilesTable, user.ProfilesColumn),
-		)
-		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
-}
-
 // QueryProfile queries the profile edge of a User.
 func (c *UserClient) QueryProfile(_m *User) *ProfileQuery {
 	query := (&ProfileClient{config: c.config}).Query()
@@ -801,6 +1206,70 @@ func (c *UserClient) QueryProfile(_m *User) *ProfileQuery {
 			sqlgraph.From(user.Table, user.FieldID, id),
 			sqlgraph.To(profile.Table, profile.FieldID),
 			sqlgraph.Edge(sqlgraph.O2O, false, user.ProfileTable, user.ProfileColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryIdentities queries the identities edge of a User.
+func (c *UserClient) QueryIdentities(_m *User) *UserIdentityQuery {
+	query := (&UserIdentityClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(useridentity.Table, useridentity.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.IdentitiesTable, user.IdentitiesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryAuthorizations queries the authorizations edge of a User.
+func (c *UserClient) QueryAuthorizations(_m *User) *UserAppAuthorizationQuery {
+	query := (&UserAppAuthorizationClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(userappauthorization.Table, userappauthorization.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.AuthorizationsTable, user.AuthorizationsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QuerySSOSessions queries the sso_sessions edge of a User.
+func (c *UserClient) QuerySSOSessions(_m *User) *SsoSessionQuery {
+	query := (&SsoSessionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(ssosession.Table, ssosession.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.SSOSessionsTable, user.SSOSessionsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QuerySessions queries the sessions edge of a User.
+func (c *UserClient) QuerySessions(_m *User) *SessionQuery {
+	query := (&SessionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(session.Table, session.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.SessionsTable, user.SessionsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -833,107 +1302,107 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 	}
 }
 
-// UserAppProfileClient is a client for the UserAppProfile schema.
-type UserAppProfileClient struct {
+// UserAppAuthorizationClient is a client for the UserAppAuthorization schema.
+type UserAppAuthorizationClient struct {
 	config
 }
 
-// NewUserAppProfileClient returns a client for the UserAppProfile from the given config.
-func NewUserAppProfileClient(c config) *UserAppProfileClient {
-	return &UserAppProfileClient{config: c}
+// NewUserAppAuthorizationClient returns a client for the UserAppAuthorization from the given config.
+func NewUserAppAuthorizationClient(c config) *UserAppAuthorizationClient {
+	return &UserAppAuthorizationClient{config: c}
 }
 
 // Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `userappprofile.Hooks(f(g(h())))`.
-func (c *UserAppProfileClient) Use(hooks ...Hook) {
-	c.hooks.UserAppProfile = append(c.hooks.UserAppProfile, hooks...)
+// A call to `Use(f, g, h)` equals to `userappauthorization.Hooks(f(g(h())))`.
+func (c *UserAppAuthorizationClient) Use(hooks ...Hook) {
+	c.hooks.UserAppAuthorization = append(c.hooks.UserAppAuthorization, hooks...)
 }
 
 // Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `userappprofile.Intercept(f(g(h())))`.
-func (c *UserAppProfileClient) Intercept(interceptors ...Interceptor) {
-	c.inters.UserAppProfile = append(c.inters.UserAppProfile, interceptors...)
+// A call to `Intercept(f, g, h)` equals to `userappauthorization.Intercept(f(g(h())))`.
+func (c *UserAppAuthorizationClient) Intercept(interceptors ...Interceptor) {
+	c.inters.UserAppAuthorization = append(c.inters.UserAppAuthorization, interceptors...)
 }
 
-// Create returns a builder for creating a UserAppProfile entity.
-func (c *UserAppProfileClient) Create() *UserAppProfileCreate {
-	mutation := newUserAppProfileMutation(c.config, OpCreate)
-	return &UserAppProfileCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Create returns a builder for creating a UserAppAuthorization entity.
+func (c *UserAppAuthorizationClient) Create() *UserAppAuthorizationCreate {
+	mutation := newUserAppAuthorizationMutation(c.config, OpCreate)
+	return &UserAppAuthorizationCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
-// CreateBulk returns a builder for creating a bulk of UserAppProfile entities.
-func (c *UserAppProfileClient) CreateBulk(builders ...*UserAppProfileCreate) *UserAppProfileCreateBulk {
-	return &UserAppProfileCreateBulk{config: c.config, builders: builders}
+// CreateBulk returns a builder for creating a bulk of UserAppAuthorization entities.
+func (c *UserAppAuthorizationClient) CreateBulk(builders ...*UserAppAuthorizationCreate) *UserAppAuthorizationCreateBulk {
+	return &UserAppAuthorizationCreateBulk{config: c.config, builders: builders}
 }
 
 // MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
 // a builder and applies setFunc on it.
-func (c *UserAppProfileClient) MapCreateBulk(slice any, setFunc func(*UserAppProfileCreate, int)) *UserAppProfileCreateBulk {
+func (c *UserAppAuthorizationClient) MapCreateBulk(slice any, setFunc func(*UserAppAuthorizationCreate, int)) *UserAppAuthorizationCreateBulk {
 	rv := reflect.ValueOf(slice)
 	if rv.Kind() != reflect.Slice {
-		return &UserAppProfileCreateBulk{err: fmt.Errorf("calling to UserAppProfileClient.MapCreateBulk with wrong type %T, need slice", slice)}
+		return &UserAppAuthorizationCreateBulk{err: fmt.Errorf("calling to UserAppAuthorizationClient.MapCreateBulk with wrong type %T, need slice", slice)}
 	}
-	builders := make([]*UserAppProfileCreate, rv.Len())
+	builders := make([]*UserAppAuthorizationCreate, rv.Len())
 	for i := 0; i < rv.Len(); i++ {
 		builders[i] = c.Create()
 		setFunc(builders[i], i)
 	}
-	return &UserAppProfileCreateBulk{config: c.config, builders: builders}
+	return &UserAppAuthorizationCreateBulk{config: c.config, builders: builders}
 }
 
-// Update returns an update builder for UserAppProfile.
-func (c *UserAppProfileClient) Update() *UserAppProfileUpdate {
-	mutation := newUserAppProfileMutation(c.config, OpUpdate)
-	return &UserAppProfileUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Update returns an update builder for UserAppAuthorization.
+func (c *UserAppAuthorizationClient) Update() *UserAppAuthorizationUpdate {
+	mutation := newUserAppAuthorizationMutation(c.config, OpUpdate)
+	return &UserAppAuthorizationUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // UpdateOne returns an update builder for the given entity.
-func (c *UserAppProfileClient) UpdateOne(_m *UserAppProfile) *UserAppProfileUpdateOne {
-	mutation := newUserAppProfileMutation(c.config, OpUpdateOne, withUserAppProfile(_m))
-	return &UserAppProfileUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+func (c *UserAppAuthorizationClient) UpdateOne(_m *UserAppAuthorization) *UserAppAuthorizationUpdateOne {
+	mutation := newUserAppAuthorizationMutation(c.config, OpUpdateOne, withUserAppAuthorization(_m))
+	return &UserAppAuthorizationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // UpdateOneID returns an update builder for the given id.
-func (c *UserAppProfileClient) UpdateOneID(id int) *UserAppProfileUpdateOne {
-	mutation := newUserAppProfileMutation(c.config, OpUpdateOne, withUserAppProfileID(id))
-	return &UserAppProfileUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+func (c *UserAppAuthorizationClient) UpdateOneID(id int) *UserAppAuthorizationUpdateOne {
+	mutation := newUserAppAuthorizationMutation(c.config, OpUpdateOne, withUserAppAuthorizationID(id))
+	return &UserAppAuthorizationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
-// Delete returns a delete builder for UserAppProfile.
-func (c *UserAppProfileClient) Delete() *UserAppProfileDelete {
-	mutation := newUserAppProfileMutation(c.config, OpDelete)
-	return &UserAppProfileDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Delete returns a delete builder for UserAppAuthorization.
+func (c *UserAppAuthorizationClient) Delete() *UserAppAuthorizationDelete {
+	mutation := newUserAppAuthorizationMutation(c.config, OpDelete)
+	return &UserAppAuthorizationDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // DeleteOne returns a builder for deleting the given entity.
-func (c *UserAppProfileClient) DeleteOne(_m *UserAppProfile) *UserAppProfileDeleteOne {
+func (c *UserAppAuthorizationClient) DeleteOne(_m *UserAppAuthorization) *UserAppAuthorizationDeleteOne {
 	return c.DeleteOneID(_m.ID)
 }
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
-func (c *UserAppProfileClient) DeleteOneID(id int) *UserAppProfileDeleteOne {
-	builder := c.Delete().Where(userappprofile.ID(id))
+func (c *UserAppAuthorizationClient) DeleteOneID(id int) *UserAppAuthorizationDeleteOne {
+	builder := c.Delete().Where(userappauthorization.ID(id))
 	builder.mutation.id = &id
 	builder.mutation.op = OpDeleteOne
-	return &UserAppProfileDeleteOne{builder}
+	return &UserAppAuthorizationDeleteOne{builder}
 }
 
-// Query returns a query builder for UserAppProfile.
-func (c *UserAppProfileClient) Query() *UserAppProfileQuery {
-	return &UserAppProfileQuery{
+// Query returns a query builder for UserAppAuthorization.
+func (c *UserAppAuthorizationClient) Query() *UserAppAuthorizationQuery {
+	return &UserAppAuthorizationQuery{
 		config: c.config,
-		ctx:    &QueryContext{Type: TypeUserAppProfile},
+		ctx:    &QueryContext{Type: TypeUserAppAuthorization},
 		inters: c.Interceptors(),
 	}
 }
 
-// Get returns a UserAppProfile entity by its id.
-func (c *UserAppProfileClient) Get(ctx context.Context, id int) (*UserAppProfile, error) {
-	return c.Query().Where(userappprofile.ID(id)).Only(ctx)
+// Get returns a UserAppAuthorization entity by its id.
+func (c *UserAppAuthorizationClient) Get(ctx context.Context, id int) (*UserAppAuthorization, error) {
+	return c.Query().Where(userappauthorization.ID(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.
-func (c *UserAppProfileClient) GetX(ctx context.Context, id int) *UserAppProfile {
+func (c *UserAppAuthorizationClient) GetX(ctx context.Context, id int) *UserAppAuthorization {
 	obj, err := c.Get(ctx, id)
 	if err != nil {
 		panic(err)
@@ -941,15 +1410,15 @@ func (c *UserAppProfileClient) GetX(ctx context.Context, id int) *UserAppProfile
 	return obj
 }
 
-// QueryUser queries the user edge of a UserAppProfile.
-func (c *UserAppProfileClient) QueryUser(_m *UserAppProfile) *UserQuery {
+// QueryUser queries the user edge of a UserAppAuthorization.
+func (c *UserAppAuthorizationClient) QueryUser(_m *UserAppAuthorization) *UserQuery {
 	query := (&UserClient{config: c.config}).Query()
 	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
 		id := _m.ID
 		step := sqlgraph.NewStep(
-			sqlgraph.From(userappprofile.Table, userappprofile.FieldID, id),
+			sqlgraph.From(userappauthorization.Table, userappauthorization.FieldID, id),
 			sqlgraph.To(user.Table, user.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, userappprofile.UserTable, userappprofile.UserColumn),
+			sqlgraph.Edge(sqlgraph.M2O, true, userappauthorization.UserTable, userappauthorization.UserColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -957,15 +1426,31 @@ func (c *UserAppProfileClient) QueryUser(_m *UserAppProfile) *UserQuery {
 	return query
 }
 
-// QueryApp queries the app edge of a UserAppProfile.
-func (c *UserAppProfileClient) QueryApp(_m *UserAppProfile) *AppQuery {
+// QueryApp queries the app edge of a UserAppAuthorization.
+func (c *UserAppAuthorizationClient) QueryApp(_m *UserAppAuthorization) *AppQuery {
 	query := (&AppClient{config: c.config}).Query()
 	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
 		id := _m.ID
 		step := sqlgraph.NewStep(
-			sqlgraph.From(userappprofile.Table, userappprofile.FieldID, id),
+			sqlgraph.From(userappauthorization.Table, userappauthorization.FieldID, id),
 			sqlgraph.To(app.Table, app.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, userappprofile.AppTable, userappprofile.AppColumn),
+			sqlgraph.Edge(sqlgraph.M2O, true, userappauthorization.AppTable, userappauthorization.AppColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QuerySourceIdentity queries the source_identity edge of a UserAppAuthorization.
+func (c *UserAppAuthorizationClient) QuerySourceIdentity(_m *UserAppAuthorization) *UserIdentityQuery {
+	query := (&UserIdentityClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(userappauthorization.Table, userappauthorization.FieldID, id),
+			sqlgraph.To(useridentity.Table, useridentity.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, userappauthorization.SourceIdentityTable, userappauthorization.SourceIdentityColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -974,36 +1459,235 @@ func (c *UserAppProfileClient) QueryApp(_m *UserAppProfile) *AppQuery {
 }
 
 // Hooks returns the client hooks.
-func (c *UserAppProfileClient) Hooks() []Hook {
-	return c.hooks.UserAppProfile
+func (c *UserAppAuthorizationClient) Hooks() []Hook {
+	return c.hooks.UserAppAuthorization
 }
 
 // Interceptors returns the client interceptors.
-func (c *UserAppProfileClient) Interceptors() []Interceptor {
-	return c.inters.UserAppProfile
+func (c *UserAppAuthorizationClient) Interceptors() []Interceptor {
+	return c.inters.UserAppAuthorization
 }
 
-func (c *UserAppProfileClient) mutate(ctx context.Context, m *UserAppProfileMutation) (Value, error) {
+func (c *UserAppAuthorizationClient) mutate(ctx context.Context, m *UserAppAuthorizationMutation) (Value, error) {
 	switch m.Op() {
 	case OpCreate:
-		return (&UserAppProfileCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&UserAppAuthorizationCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpUpdate:
-		return (&UserAppProfileUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&UserAppAuthorizationUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpUpdateOne:
-		return (&UserAppProfileUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&UserAppAuthorizationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpDelete, OpDeleteOne:
-		return (&UserAppProfileDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+		return (&UserAppAuthorizationDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
-		return nil, fmt.Errorf("ent: unknown UserAppProfile mutation op: %q", m.Op())
+		return nil, fmt.Errorf("ent: unknown UserAppAuthorization mutation op: %q", m.Op())
+	}
+}
+
+// UserIdentityClient is a client for the UserIdentity schema.
+type UserIdentityClient struct {
+	config
+}
+
+// NewUserIdentityClient returns a client for the UserIdentity from the given config.
+func NewUserIdentityClient(c config) *UserIdentityClient {
+	return &UserIdentityClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `useridentity.Hooks(f(g(h())))`.
+func (c *UserIdentityClient) Use(hooks ...Hook) {
+	c.hooks.UserIdentity = append(c.hooks.UserIdentity, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `useridentity.Intercept(f(g(h())))`.
+func (c *UserIdentityClient) Intercept(interceptors ...Interceptor) {
+	c.inters.UserIdentity = append(c.inters.UserIdentity, interceptors...)
+}
+
+// Create returns a builder for creating a UserIdentity entity.
+func (c *UserIdentityClient) Create() *UserIdentityCreate {
+	mutation := newUserIdentityMutation(c.config, OpCreate)
+	return &UserIdentityCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of UserIdentity entities.
+func (c *UserIdentityClient) CreateBulk(builders ...*UserIdentityCreate) *UserIdentityCreateBulk {
+	return &UserIdentityCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *UserIdentityClient) MapCreateBulk(slice any, setFunc func(*UserIdentityCreate, int)) *UserIdentityCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &UserIdentityCreateBulk{err: fmt.Errorf("calling to UserIdentityClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*UserIdentityCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &UserIdentityCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for UserIdentity.
+func (c *UserIdentityClient) Update() *UserIdentityUpdate {
+	mutation := newUserIdentityMutation(c.config, OpUpdate)
+	return &UserIdentityUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *UserIdentityClient) UpdateOne(_m *UserIdentity) *UserIdentityUpdateOne {
+	mutation := newUserIdentityMutation(c.config, OpUpdateOne, withUserIdentity(_m))
+	return &UserIdentityUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *UserIdentityClient) UpdateOneID(id int) *UserIdentityUpdateOne {
+	mutation := newUserIdentityMutation(c.config, OpUpdateOne, withUserIdentityID(id))
+	return &UserIdentityUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for UserIdentity.
+func (c *UserIdentityClient) Delete() *UserIdentityDelete {
+	mutation := newUserIdentityMutation(c.config, OpDelete)
+	return &UserIdentityDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *UserIdentityClient) DeleteOne(_m *UserIdentity) *UserIdentityDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *UserIdentityClient) DeleteOneID(id int) *UserIdentityDeleteOne {
+	builder := c.Delete().Where(useridentity.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &UserIdentityDeleteOne{builder}
+}
+
+// Query returns a query builder for UserIdentity.
+func (c *UserIdentityClient) Query() *UserIdentityQuery {
+	return &UserIdentityQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeUserIdentity},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a UserIdentity entity by its id.
+func (c *UserIdentityClient) Get(ctx context.Context, id int) (*UserIdentity, error) {
+	return c.Query().Where(useridentity.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *UserIdentityClient) GetX(ctx context.Context, id int) *UserIdentity {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryUser queries the user edge of a UserIdentity.
+func (c *UserIdentityClient) QueryUser(_m *UserIdentity) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(useridentity.Table, useridentity.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, useridentity.UserTable, useridentity.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryAuthorizations queries the authorizations edge of a UserIdentity.
+func (c *UserIdentityClient) QueryAuthorizations(_m *UserIdentity) *UserAppAuthorizationQuery {
+	query := (&UserAppAuthorizationClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(useridentity.Table, useridentity.FieldID, id),
+			sqlgraph.To(userappauthorization.Table, userappauthorization.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, useridentity.AuthorizationsTable, useridentity.AuthorizationsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QuerySSOSessions queries the sso_sessions edge of a UserIdentity.
+func (c *UserIdentityClient) QuerySSOSessions(_m *UserIdentity) *SsoSessionQuery {
+	query := (&SsoSessionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(useridentity.Table, useridentity.FieldID, id),
+			sqlgraph.To(ssosession.Table, ssosession.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, useridentity.SSOSessionsTable, useridentity.SSOSessionsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QuerySessions queries the sessions edge of a UserIdentity.
+func (c *UserIdentityClient) QuerySessions(_m *UserIdentity) *SessionQuery {
+	query := (&SessionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(useridentity.Table, useridentity.FieldID, id),
+			sqlgraph.To(session.Table, session.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, useridentity.SessionsTable, useridentity.SessionsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *UserIdentityClient) Hooks() []Hook {
+	return c.hooks.UserIdentity
+}
+
+// Interceptors returns the client interceptors.
+func (c *UserIdentityClient) Interceptors() []Interceptor {
+	return c.inters.UserIdentity
+}
+
+func (c *UserIdentityClient) mutate(ctx context.Context, m *UserIdentityMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&UserIdentityCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&UserIdentityUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&UserIdentityUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&UserIdentityDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown UserIdentity mutation op: %q", m.Op())
 	}
 }
 
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		App, EventOutbox, Profile, User, UserAppProfile []ent.Hook
+		App, EventOutbox, Profile, Session, SsoSession, User, UserAppAuthorization,
+		UserIdentity []ent.Hook
 	}
 	inters struct {
-		App, EventOutbox, Profile, User, UserAppProfile []ent.Interceptor
+		App, EventOutbox, Profile, Session, SsoSession, User, UserAppAuthorization,
+		UserIdentity []ent.Interceptor
 	}
 )

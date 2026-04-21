@@ -15,8 +15,17 @@ type EventOutbox func(*sql.Selector)
 // Profile is the predicate function for profile builders.
 type Profile func(*sql.Selector)
 
+// Session is the predicate function for session builders.
+type Session func(*sql.Selector)
+
+// SsoSession is the predicate function for ssosession builders.
+type SsoSession func(*sql.Selector)
+
 // User is the predicate function for user builders.
 type User func(*sql.Selector)
 
-// UserAppProfile is the predicate function for userappprofile builders.
-type UserAppProfile func(*sql.Selector)
+// UserAppAuthorization is the predicate function for userappauthorization builders.
+type UserAppAuthorization func(*sql.Selector)
+
+// UserIdentity is the predicate function for useridentity builders.
+type UserIdentity func(*sql.Selector)

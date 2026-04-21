@@ -15,8 +15,11 @@ import (
 	"github.com/luckysxx/user-platform/internal/ent/app"
 	"github.com/luckysxx/user-platform/internal/ent/eventoutbox"
 	"github.com/luckysxx/user-platform/internal/ent/profile"
+	"github.com/luckysxx/user-platform/internal/ent/session"
+	"github.com/luckysxx/user-platform/internal/ent/ssosession"
 	"github.com/luckysxx/user-platform/internal/ent/user"
-	"github.com/luckysxx/user-platform/internal/ent/userappprofile"
+	"github.com/luckysxx/user-platform/internal/ent/userappauthorization"
+	"github.com/luckysxx/user-platform/internal/ent/useridentity"
 )
 
 // ent aliases to avoid import conflicts in user's code.
@@ -77,11 +80,14 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			app.Table:            app.ValidColumn,
-			eventoutbox.Table:    eventoutbox.ValidColumn,
-			profile.Table:        profile.ValidColumn,
-			user.Table:           user.ValidColumn,
-			userappprofile.Table: userappprofile.ValidColumn,
+			app.Table:                  app.ValidColumn,
+			eventoutbox.Table:          eventoutbox.ValidColumn,
+			profile.Table:              profile.ValidColumn,
+			session.Table:              session.ValidColumn,
+			ssosession.Table:           ssosession.ValidColumn,
+			user.Table:                 user.ValidColumn,
+			userappauthorization.Table: userappauthorization.ValidColumn,
+			useridentity.Table:         useridentity.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

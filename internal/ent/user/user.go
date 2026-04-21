@@ -15,31 +15,26 @@ const (
 	Label = "user"
 	// FieldID holds the string denoting the id field in the database.
 	FieldID = "id"
-	// FieldEmail holds the string denoting the email field in the database.
-	FieldEmail = "email"
-	// FieldUsername holds the string denoting the username field in the database.
-	FieldUsername = "username"
-	// FieldPassword holds the string denoting the password field in the database.
-	FieldPassword = "password"
+	// FieldUserVersion holds the string denoting the user_version field in the database.
+	FieldUserVersion = "user_version"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
-	// EdgeProfiles holds the string denoting the profiles edge name in mutations.
-	EdgeProfiles = "profiles"
 	// EdgeProfile holds the string denoting the profile edge name in mutations.
 	EdgeProfile = "profile"
+	// EdgeIdentities holds the string denoting the identities edge name in mutations.
+	EdgeIdentities = "identities"
+	// EdgeAuthorizations holds the string denoting the authorizations edge name in mutations.
+	EdgeAuthorizations = "authorizations"
+	// EdgeSSOSessions holds the string denoting the sso_sessions edge name in mutations.
+	EdgeSSOSessions = "sso_sessions"
+	// EdgeSessions holds the string denoting the sessions edge name in mutations.
+	EdgeSessions = "sessions"
 	// Table holds the table name of the user in the database.
 	Table = "users"
-	// ProfilesTable is the table that holds the profiles relation/edge.
-	ProfilesTable = "user_app_profiles"
-	// ProfilesInverseTable is the table name for the UserAppProfile entity.
-	// It exists in this package in order to avoid circular dependency with the "userappprofile" package.
-	ProfilesInverseTable = "user_app_profiles"
-	// ProfilesColumn is the table column denoting the profiles relation/edge.
-	ProfilesColumn = "user_profiles"
 	// ProfileTable is the table that holds the profile relation/edge.
 	ProfileTable = "profiles"
 	// ProfileInverseTable is the table name for the Profile entity.
@@ -47,14 +42,40 @@ const (
 	ProfileInverseTable = "profiles"
 	// ProfileColumn is the table column denoting the profile relation/edge.
 	ProfileColumn = "user_profile"
+	// IdentitiesTable is the table that holds the identities relation/edge.
+	IdentitiesTable = "user_identities"
+	// IdentitiesInverseTable is the table name for the UserIdentity entity.
+	// It exists in this package in order to avoid circular dependency with the "useridentity" package.
+	IdentitiesInverseTable = "user_identities"
+	// IdentitiesColumn is the table column denoting the identities relation/edge.
+	IdentitiesColumn = "user_identities"
+	// AuthorizationsTable is the table that holds the authorizations relation/edge.
+	AuthorizationsTable = "user_app_authorizations"
+	// AuthorizationsInverseTable is the table name for the UserAppAuthorization entity.
+	// It exists in this package in order to avoid circular dependency with the "userappauthorization" package.
+	AuthorizationsInverseTable = "user_app_authorizations"
+	// AuthorizationsColumn is the table column denoting the authorizations relation/edge.
+	AuthorizationsColumn = "user_authorizations"
+	// SSOSessionsTable is the table that holds the sso_sessions relation/edge.
+	SSOSessionsTable = "sso_sessions"
+	// SSOSessionsInverseTable is the table name for the SsoSession entity.
+	// It exists in this package in order to avoid circular dependency with the "ssosession" package.
+	SSOSessionsInverseTable = "sso_sessions"
+	// SSOSessionsColumn is the table column denoting the sso_sessions relation/edge.
+	SSOSessionsColumn = "user_sso_sessions"
+	// SessionsTable is the table that holds the sessions relation/edge.
+	SessionsTable = "sessions"
+	// SessionsInverseTable is the table name for the Session entity.
+	// It exists in this package in order to avoid circular dependency with the "session" package.
+	SessionsInverseTable = "sessions"
+	// SessionsColumn is the table column denoting the sessions relation/edge.
+	SessionsColumn = "user_sessions"
 )
 
 // Columns holds all SQL columns for user fields.
 var Columns = []string{
 	FieldID,
-	FieldEmail,
-	FieldUsername,
-	FieldPassword,
+	FieldUserVersion,
 	FieldStatus,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -71,12 +92,8 @@ func ValidColumn(column string) bool {
 }
 
 var (
-	// EmailValidator is a validator for the "email" field. It is called by the builders before save.
-	EmailValidator func(string) error
-	// UsernameValidator is a validator for the "username" field. It is called by the builders before save.
-	UsernameValidator func(string) error
-	// PasswordValidator is a validator for the "password" field. It is called by the builders before save.
-	PasswordValidator func(string) error
+	// DefaultUserVersion holds the default value on creation for the "user_version" field.
+	DefaultUserVersion int64
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -122,19 +139,9 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldID, opts...).ToFunc()
 }
 
-// ByEmail orders the results by the email field.
-func ByEmail(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldEmail, opts...).ToFunc()
-}
-
-// ByUsername orders the results by the username field.
-func ByUsername(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldUsername, opts...).ToFunc()
-}
-
-// ByPassword orders the results by the password field.
-func ByPassword(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldPassword, opts...).ToFunc()
+// ByUserVersion orders the results by the user_version field.
+func ByUserVersion(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUserVersion, opts...).ToFunc()
 }
 
 // ByStatus orders the results by the status field.
@@ -152,37 +159,100 @@ func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
 }
 
-// ByProfilesCount orders the results by profiles count.
-func ByProfilesCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newProfilesStep(), opts...)
-	}
-}
-
-// ByProfiles orders the results by profiles terms.
-func ByProfiles(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newProfilesStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
 // ByProfileField orders the results by profile field.
 func ByProfileField(field string, opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
 		sqlgraph.OrderByNeighborTerms(s, newProfileStep(), sql.OrderByField(field, opts...))
 	}
 }
-func newProfilesStep() *sqlgraph.Step {
-	return sqlgraph.NewStep(
-		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(ProfilesInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.O2M, false, ProfilesTable, ProfilesColumn),
-	)
+
+// ByIdentitiesCount orders the results by identities count.
+func ByIdentitiesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newIdentitiesStep(), opts...)
+	}
+}
+
+// ByIdentities orders the results by identities terms.
+func ByIdentities(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newIdentitiesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByAuthorizationsCount orders the results by authorizations count.
+func ByAuthorizationsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newAuthorizationsStep(), opts...)
+	}
+}
+
+// ByAuthorizations orders the results by authorizations terms.
+func ByAuthorizations(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newAuthorizationsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// BySSOSessionsCount orders the results by sso_sessions count.
+func BySSOSessionsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newSSOSessionsStep(), opts...)
+	}
+}
+
+// BySSOSessions orders the results by sso_sessions terms.
+func BySSOSessions(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newSSOSessionsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// BySessionsCount orders the results by sessions count.
+func BySessionsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newSessionsStep(), opts...)
+	}
+}
+
+// BySessions orders the results by sessions terms.
+func BySessions(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newSessionsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
 }
 func newProfileStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ProfileInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2O, false, ProfileTable, ProfileColumn),
+	)
+}
+func newIdentitiesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(IdentitiesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, IdentitiesTable, IdentitiesColumn),
+	)
+}
+func newAuthorizationsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(AuthorizationsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, AuthorizationsTable, AuthorizationsColumn),
+	)
+}
+func newSSOSessionsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(SSOSessionsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, SSOSessionsTable, SSOSessionsColumn),
+	)
+}
+func newSessionsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(SessionsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, SessionsTable, SessionsColumn),
 	)
 }

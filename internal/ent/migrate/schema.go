@@ -72,12 +72,115 @@ var (
 			},
 		},
 	}
+	// SessionsColumns holds the columns for the "sessions" table.
+	SessionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "session_token_hash", Type: field.TypeString, Unique: true},
+		{Name: "device_id", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "user_agent", Type: field.TypeString, Nullable: true, Size: 512},
+		{Name: "ip", Type: field.TypeString, Nullable: true},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "revoked", "expired"}, Default: "active"},
+		{Name: "version", Type: field.TypeInt64, Default: 1},
+		{Name: "user_version", Type: field.TypeInt64, Default: 1},
+		{Name: "expires_at", Type: field.TypeTime},
+		{Name: "last_seen_at", Type: field.TypeTime},
+		{Name: "revoked_at", Type: field.TypeTime, Nullable: true},
+		{Name: "app_sessions", Type: field.TypeInt},
+		{Name: "sso_session_sessions", Type: field.TypeUUID, Nullable: true},
+		{Name: "user_sessions", Type: field.TypeInt64},
+		{Name: "user_identity_sessions", Type: field.TypeInt, Nullable: true},
+	}
+	// SessionsTable holds the schema information for the "sessions" table.
+	SessionsTable = &schema.Table{
+		Name:       "sessions",
+		Columns:    SessionsColumns,
+		PrimaryKey: []*schema.Column{SessionsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "sessions_apps_sessions",
+				Columns:    []*schema.Column{SessionsColumns[11]},
+				RefColumns: []*schema.Column{AppsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "sessions_sso_sessions_sessions",
+				Columns:    []*schema.Column{SessionsColumns[12]},
+				RefColumns: []*schema.Column{SSOSessionsColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+			{
+				Symbol:     "sessions_users_sessions",
+				Columns:    []*schema.Column{SessionsColumns[13]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "sessions_user_identities_sessions",
+				Columns:    []*schema.Column{SessionsColumns[14]},
+				RefColumns: []*schema.Column{UserIdentitiesColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "session_user_sessions",
+				Unique:  false,
+				Columns: []*schema.Column{SessionsColumns[13]},
+			},
+			{
+				Name:    "session_user_sessions_app_sessions",
+				Unique:  false,
+				Columns: []*schema.Column{SessionsColumns[13], SessionsColumns[11]},
+			},
+		},
+	}
+	// SSOSessionsColumns holds the columns for the "sso_sessions" table.
+	SSOSessionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "sso_token_hash", Type: field.TypeString, Unique: true},
+		{Name: "device_id", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "user_agent", Type: field.TypeString, Nullable: true, Size: 512},
+		{Name: "ip", Type: field.TypeString, Nullable: true},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "revoked", "expired"}, Default: "active"},
+		{Name: "sso_version", Type: field.TypeInt64, Default: 1},
+		{Name: "user_version", Type: field.TypeInt64, Default: 1},
+		{Name: "expires_at", Type: field.TypeTime},
+		{Name: "last_seen_at", Type: field.TypeTime},
+		{Name: "revoked_at", Type: field.TypeTime, Nullable: true},
+		{Name: "user_sso_sessions", Type: field.TypeInt64},
+		{Name: "user_identity_sso_sessions", Type: field.TypeInt, Nullable: true},
+	}
+	// SSOSessionsTable holds the schema information for the "sso_sessions" table.
+	SSOSessionsTable = &schema.Table{
+		Name:       "sso_sessions",
+		Columns:    SSOSessionsColumns,
+		PrimaryKey: []*schema.Column{SSOSessionsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "sso_sessions_users_sso_sessions",
+				Columns:    []*schema.Column{SSOSessionsColumns[11]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "sso_sessions_user_identities_sso_sessions",
+				Columns:    []*schema.Column{SSOSessionsColumns[12]},
+				RefColumns: []*schema.Column{UserIdentitiesColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "ssosession_user_sso_sessions",
+				Unique:  false,
+				Columns: []*schema.Column{SSOSessionsColumns[11]},
+			},
+		},
+	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
-		{Name: "email", Type: field.TypeString, Unique: true, Size: 255},
-		{Name: "username", Type: field.TypeString, Unique: true, Size: 32},
-		{Name: "password", Type: field.TypeString},
+		{Name: "user_version", Type: field.TypeInt64, Default: 1},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "banned", "deleted"}, Default: "active"},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
@@ -88,31 +191,84 @@ var (
 		Columns:    UsersColumns,
 		PrimaryKey: []*schema.Column{UsersColumns[0]},
 	}
-	// UserAppProfilesColumns holds the columns for the "user_app_profiles" table.
-	UserAppProfilesColumns = []*schema.Column{
+	// UserAppAuthorizationsColumns holds the columns for the "user_app_authorizations" table.
+	UserAppAuthorizationsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "revoked", "banned"}, Default: "active"},
+		{Name: "scopes", Type: field.TypeJSON},
+		{Name: "ext_profile", Type: field.TypeJSON},
 		{Name: "first_authorized_at", Type: field.TypeTime},
+		{Name: "last_login_at", Type: field.TypeTime, Nullable: true},
 		{Name: "last_active_at", Type: field.TypeTime},
-		{Name: "app_profiles", Type: field.TypeInt},
-		{Name: "user_profiles", Type: field.TypeInt64},
+		{Name: "app_authorizations", Type: field.TypeInt},
+		{Name: "user_authorizations", Type: field.TypeInt64},
+		{Name: "user_identity_authorizations", Type: field.TypeInt, Nullable: true},
 	}
-	// UserAppProfilesTable holds the schema information for the "user_app_profiles" table.
-	UserAppProfilesTable = &schema.Table{
-		Name:       "user_app_profiles",
-		Columns:    UserAppProfilesColumns,
-		PrimaryKey: []*schema.Column{UserAppProfilesColumns[0]},
+	// UserAppAuthorizationsTable holds the schema information for the "user_app_authorizations" table.
+	UserAppAuthorizationsTable = &schema.Table{
+		Name:       "user_app_authorizations",
+		Columns:    UserAppAuthorizationsColumns,
+		PrimaryKey: []*schema.Column{UserAppAuthorizationsColumns[0]},
 		ForeignKeys: []*schema.ForeignKey{
 			{
-				Symbol:     "user_app_profiles_apps_profiles",
-				Columns:    []*schema.Column{UserAppProfilesColumns[3]},
+				Symbol:     "user_app_authorizations_apps_authorizations",
+				Columns:    []*schema.Column{UserAppAuthorizationsColumns[7]},
 				RefColumns: []*schema.Column{AppsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
-				Symbol:     "user_app_profiles_users_profiles",
-				Columns:    []*schema.Column{UserAppProfilesColumns[4]},
+				Symbol:     "user_app_authorizations_users_authorizations",
+				Columns:    []*schema.Column{UserAppAuthorizationsColumns[8]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "user_app_authorizations_user_identities_authorizations",
+				Columns:    []*schema.Column{UserAppAuthorizationsColumns[9]},
+				RefColumns: []*schema.Column{UserIdentitiesColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "userappauthorization_user_authorizations_app_authorizations",
+				Unique:  true,
+				Columns: []*schema.Column{UserAppAuthorizationsColumns[8], UserAppAuthorizationsColumns[7]},
+			},
+		},
+	}
+	// UserIdentitiesColumns holds the columns for the "user_identities" table.
+	UserIdentitiesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "provider", Type: field.TypeEnum, Enums: []string{"phone", "email", "username", "github", "qq", "wechat"}},
+		{Name: "provider_uid", Type: field.TypeString, Size: 255},
+		{Name: "provider_union_id", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "login_name", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "credential_hash", Type: field.TypeString, Nullable: true},
+		{Name: "verified_at", Type: field.TypeTime, Nullable: true},
+		{Name: "linked_at", Type: field.TypeTime},
+		{Name: "last_login_at", Type: field.TypeTime, Nullable: true},
+		{Name: "meta", Type: field.TypeJSON},
+		{Name: "user_identities", Type: field.TypeInt64},
+	}
+	// UserIdentitiesTable holds the schema information for the "user_identities" table.
+	UserIdentitiesTable = &schema.Table{
+		Name:       "user_identities",
+		Columns:    UserIdentitiesColumns,
+		PrimaryKey: []*schema.Column{UserIdentitiesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "user_identities_users_identities",
+				Columns:    []*schema.Column{UserIdentitiesColumns[10]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "useridentity_provider_provider_uid",
+				Unique:  true,
+				Columns: []*schema.Column{UserIdentitiesColumns[1], UserIdentitiesColumns[2]},
 			},
 		},
 	}
@@ -121,13 +277,24 @@ var (
 		AppsTable,
 		EventOutboxesTable,
 		ProfilesTable,
+		SessionsTable,
+		SSOSessionsTable,
 		UsersTable,
-		UserAppProfilesTable,
+		UserAppAuthorizationsTable,
+		UserIdentitiesTable,
 	}
 )
 
 func init() {
 	ProfilesTable.ForeignKeys[0].RefTable = UsersTable
-	UserAppProfilesTable.ForeignKeys[0].RefTable = AppsTable
-	UserAppProfilesTable.ForeignKeys[1].RefTable = UsersTable
+	SessionsTable.ForeignKeys[0].RefTable = AppsTable
+	SessionsTable.ForeignKeys[1].RefTable = SSOSessionsTable
+	SessionsTable.ForeignKeys[2].RefTable = UsersTable
+	SessionsTable.ForeignKeys[3].RefTable = UserIdentitiesTable
+	SSOSessionsTable.ForeignKeys[0].RefTable = UsersTable
+	SSOSessionsTable.ForeignKeys[1].RefTable = UserIdentitiesTable
+	UserAppAuthorizationsTable.ForeignKeys[0].RefTable = AppsTable
+	UserAppAuthorizationsTable.ForeignKeys[1].RefTable = UsersTable
+	UserAppAuthorizationsTable.ForeignKeys[2].RefTable = UserIdentitiesTable
+	UserIdentitiesTable.ForeignKeys[0].RefTable = UsersTable
 }
